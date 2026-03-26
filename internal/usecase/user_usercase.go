@@ -1,21 +1,21 @@
 package usecase
 
 import (
-	"bookify/internal/database"
-	"bookify/internal/domain" 
-	"bookify/pkg/auth"
 	"errors"
+
+	"github.com/bookify/internal/domain"
+	"github.com/bookify/internal/repository"
+	"github.com/bookify/pkg/auth"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserUsecase struct {
-	repo *database.UserRepository
+	repo *repository.UserRepository
 }
 
-func NewUserUsecase(repo *database.UserRepository) *UserUsecase {
+func NewUserUsecase(repo *repository.UserRepository) *UserUsecase {
 	return &UserUsecase{repo: repo}
 }
-
 
 func (u *UserUsecase) Register(email, password string, role domain.Role) (*domain.User, error) {
 	hashedPassword, err := u.HashPassword(password)

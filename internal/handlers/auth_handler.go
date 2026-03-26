@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"bookify/internal/domain"
-	"bookify/internal/usecase"
 	"encoding/json"
 	"net/http"
+
+	"github.com/bookify/internal/domain"
+	"github.com/bookify/internal/usecase"
 )
 
 type AuthHandler struct {
@@ -15,12 +16,11 @@ func NewAuthHandler(u *usecase.UserUsecase) *AuthHandler {
 	return &AuthHandler{usecase: u}
 }
 
-
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Email    string      `json:"email"`
 		Password string      `json:"password"`
-		Role     domain.Role `json:"role"` 
+		Role     domain.Role `json:"role"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -37,7 +37,6 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(user)
 }
-
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var input struct {
