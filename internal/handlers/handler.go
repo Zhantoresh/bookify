@@ -27,6 +27,7 @@ func NewHandler(
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/specialists", h.handleSpecialists)
 	mux.HandleFunc("/specialistsWithSlots/", h.handleSpecialistByID)
+	mux.HandleFunc("/bookings/", h.handleBookingsByID)
 	mux.HandleFunc("/bookings", h.handleBookings)
 }
 
@@ -78,6 +79,22 @@ func (h *Handler) handleBookings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) handleBookingsByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/bookings/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "invalid booking id")
+		return
+	}
+
+	h.cancelBooking(w, r, id)
+}
+
 func (h *Handler) createBooking(w http.ResponseWriter, r *http.Request) {
 	type CreateBookingRequest struct {
 		TimeSlotID int `json:"time_slot_id"`
@@ -91,7 +108,7 @@ func (h *Handler) createBooking(w http.ResponseWriter, r *http.Request) {
 
 	const userID = 1 // Hardcoded user ID for MVP
 
-	booking, err := h.bookingService.CreateBooking(userID, req.TimeSlotID)
+	bookingResponse, err := h.bookingService.CreateBookingWithDetails(userID, req.TimeSlotID)
 	if err != nil {
 		if err.Error() == "this slot is already booked" {
 			respondError(w, http.StatusConflict, "this slot is already booked")
@@ -105,7 +122,7 @@ func (h *Handler) createBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, booking)
+	respondJSON(w, http.StatusCreated, bookingResponse)
 }
 
 func (h *Handler) getBookings(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +135,30 @@ func (h *Handler) getBookings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, bookings)
+}
+
+func (h *Handler) cancelBooking(w http.ResponseWriter, r *http.Request, bookingID int) {
+	const userID = 1 // Hardcoded user ID for MVP
+
+	err := h.bookingService.CancelBooking(userID, bookingID)
+	if err != nil {
+		if err.Error() == "booking not found" {
+			respondError(w, http.StatusNotFound, "booking not found")
+			return
+		}
+		if err.Error() == "forbidden" {
+			respondError(w, http.StatusForbidden, "you can only cancel your own bookings")
+			return
+		}
+		if err.Error() == "booking is already cancelled" {
+			respondError(w, http.StatusBadRequest, "booking is already cancelled")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "failed to cancel booking")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "booking cancelled successfully"})
 }
 
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
