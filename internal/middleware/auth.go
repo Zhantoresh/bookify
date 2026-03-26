@@ -1,16 +1,16 @@
 package middleware
 
 import (
-	"bookify/pkg/auth"
 	"context"
 	"net/http"
 	"strings"
-)
 
+	"github.com/bookify/pkg/auth"
+)
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		
+
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, "Missing authorization header", http.StatusUnauthorized)
@@ -23,14 +23,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		
 		claims, err := auth.VerifyToken(parts[1])
 		if err != nil {
 			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
 			return
 		}
 
-		
 		ctx := context.WithValue(r.Context(), "user_id", claims.UserID)
 		ctx = context.WithValue(ctx, "role", claims.Role)
 
@@ -38,18 +36,16 @@ func AuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-
 func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			
+
 			userRole, ok := r.Context().Value("role").(string)
 			if !ok {
 				http.Error(w, "Unauthorized: Role not found", http.StatusUnauthorized)
 				return
 			}
 
-			
 			authorized := false
 			for _, role := range allowedRoles {
 				if userRole == role {

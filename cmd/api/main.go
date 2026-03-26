@@ -3,13 +3,14 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"	
-	
+	"os"
+
 	"github.com/bookify/internal/database"
 	"github.com/bookify/internal/handlers"
+	"github.com/bookify/internal/middleware"
 	"github.com/bookify/internal/repository"
 	"github.com/bookify/internal/service"
-  "github.com/bookify/internal/usecase"
+	"github.com/bookify/internal/usecase"
 )
 
 func main() {
@@ -34,25 +35,33 @@ func main() {
 	specialistRepo := repository.NewSpecialistRepository(db)
 	timeSlotRepo := repository.NewTimeSlotRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
-  
- 	userRepo := database.NewUserRepository(db)
+	userRepo := repository.NewUserRepository(db)
+
+	// Initialize usecases
 	userUsecase := usecase.NewUserUsecase(userRepo)
+
+	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userUsecase)
 
 	// Initialize services
 	specialistService := service.NewSpecialistService(specialistRepo, timeSlotRepo)
 	bookingService := service.NewBookingService(bookingRepo, timeSlotRepo, specialistRepo)
 
-	// Initialize handlers
-	handler := handlers.NewHandler(specialistService, bookingService)
+	// Initialize booking handlers
+	bookingHandler := handlers.NewHandler(specialistService, bookingService)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
-  
-  mux.HandleFunc("/register", authHandler.Register)
+
+	// Public routes (no auth required)
+	mux.HandleFunc("/register", authHandler.Register)
 	mux.HandleFunc("/login", authHandler.Login)
-  
-	handler.RegisterRoutes(mux)
+	mux.HandleFunc("/specialists", bookingHandler.GetSpecialists)
+	mux.HandleFunc("/specialistsWithSlots/", bookingHandler.GetSpecialistByID)
+
+	// Protected routes (require auth)
+	mux.Handle("/bookings", middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.HandleBookings)))
+	mux.Handle("/bookings/", middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.HandleBookingsByID)))
 
 	// Start server
 	addr := getEnv("SERVER_ADDR", ":8080")
