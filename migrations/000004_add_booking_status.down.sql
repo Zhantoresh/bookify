@@ -1,0 +1,1 @@
+-- Down migration 000004: No-op since status was added in 000003
