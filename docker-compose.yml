@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: bookify-db
+    environment:
+      POSTGRES_DB: bookify
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bookify-network
+
+  migrate:
+    image: migrate/migrate:v4.15.2
+    container_name: bookify-migrate
+    volumes:
+      - ./migrations:/migrations
+    command: -path /migrations -database "postgres://postgres:postgres@postgres:5432/bookify?sslmode=disable" up
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bookify-network
+
+  api:
+    build: .
+    container_name: bookify-api
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: bookify
+      DB_SSLMODE: disable
+      SERVER_ADDR: :8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - migrate
+    networks:
+      - bookify-network
+
+volumes:
+  postgres_data:
+
+networks:
+  bookify-network:
+    driver: bridge
