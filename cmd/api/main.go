@@ -3,12 +3,13 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
-
+	"os"	
+	
 	"github.com/bookify/internal/database"
 	"github.com/bookify/internal/handlers"
 	"github.com/bookify/internal/repository"
 	"github.com/bookify/internal/service"
+  "github.com/bookify/internal/usecase"
 )
 
 func main() {
@@ -33,6 +34,10 @@ func main() {
 	specialistRepo := repository.NewSpecialistRepository(db)
 	timeSlotRepo := repository.NewTimeSlotRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
+  
+ 	userRepo := database.NewUserRepository(db)
+	userUsecase := usecase.NewUserUsecase(userRepo)
+	authHandler := handlers.NewAuthHandler(userUsecase)
 
 	// Initialize services
 	specialistService := service.NewSpecialistService(specialistRepo, timeSlotRepo)
@@ -43,6 +48,10 @@ func main() {
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
+  
+  mux.HandleFunc("/register", authHandler.Register)
+	mux.HandleFunc("/login", authHandler.Login)
+  
 	handler.RegisterRoutes(mux)
 
 	// Start server
