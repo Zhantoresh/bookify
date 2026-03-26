@@ -25,13 +25,13 @@ func NewHandler(
 }
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/specialists", h.handleSpecialists)
-	mux.HandleFunc("/specialistsWithSlots/", h.handleSpecialistByID)
-	mux.HandleFunc("/bookings/", h.handleBookingsByID)
-	mux.HandleFunc("/bookings", h.handleBookings)
+	mux.HandleFunc("/specialists", h.GetSpecialists)
+	mux.HandleFunc("/specialistsWithSlots/", h.GetSpecialistByID)
+	mux.HandleFunc("/bookings/", h.HandleBookingsByID)
+	mux.HandleFunc("/bookings", h.HandleBookings)
 }
 
-func (h *Handler) handleSpecialists(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetSpecialists(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -46,7 +46,7 @@ func (h *Handler) handleSpecialists(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, specialists)
 }
 
-func (h *Handler) handleSpecialistByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetSpecialistByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -68,7 +68,7 @@ func (h *Handler) handleSpecialistByID(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, specialist)
 }
 
-func (h *Handler) handleBookings(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleBookings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		h.createBooking(w, r)
@@ -79,7 +79,7 @@ func (h *Handler) handleBookings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) handleBookingsByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleBookingsByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
@@ -106,7 +106,12 @@ func (h *Handler) createBooking(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const userID = 1 // Hardcoded user ID for MVP
+	// Get user ID from context (set by auth middleware)
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	bookingResponse, err := h.bookingService.CreateBookingWithDetails(userID, req.TimeSlotID)
 	if err != nil {
@@ -126,7 +131,12 @@ func (h *Handler) createBooking(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getBookings(w http.ResponseWriter, r *http.Request) {
-	const userID = 1 // Hardcoded user ID for MVP
+	// Get user ID from context (set by auth middleware)
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	bookings, err := h.bookingService.GetUserBookings(userID)
 	if err != nil {
@@ -138,7 +148,12 @@ func (h *Handler) getBookings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) cancelBooking(w http.ResponseWriter, r *http.Request, bookingID int) {
-	const userID = 1 // Hardcoded user ID for MVP
+	// Get user ID from context (set by auth middleware)
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
 
 	err := h.bookingService.CancelBooking(userID, bookingID)
 	if err != nil {
