@@ -15,8 +15,11 @@ Follows Clean Architecture principles with clear separation of concerns:
 - Browse available specialists (barber, dentist, psychologist)
 - View available time slots for each specialist
 - Book available time slots
-- View your bookings
+- View your bookings with specialist details and status
+- Cancel bookings (slots become available again)
+- Booking status tracking (BOOKED / CANCELLED)
 - Prevents double booking of the same time slot
+- Ownership validation (can only cancel own bookings)
 
 ## Tech Stack
 
@@ -139,9 +142,9 @@ Content-Type: application/json
 ```json
 {
   "id": 1,
-  "user_id": 1,
-  "time_slot_id": 1,
-  "created_at": "2026-03-26T12:00:00Z"
+  "specialist": "John Smith",
+  "time": "2026-03-27T09:00:00Z",
+  "status": "BOOKED"
 }
 ```
 
@@ -170,13 +173,56 @@ GET /bookings
 [
   {
     "id": 1,
-    "user_id": 1,
-    "time_slot_id": 1,
-    "created_at": "2026-03-26T12:00:00Z",
     "specialist": "John Smith",
-    "slot_time": "2026-03-27T09:00:00Z"
+    "time": "2026-03-27T09:00:00Z",
+    "status": "BOOKED"
+  },
+  {
+    "id": 2,
+    "specialist": "Dr. Sarah Johnson",
+    "time": "2026-03-28T10:00:00Z",
+    "status": "CANCELLED"
   }
 ]
+```
+
+### 5. Cancel a Booking
+```
+DELETE /bookings/{id}
+```
+
+**Example Request:**
+```
+DELETE /bookings/1
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "message": "booking cancelled successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found` - Booking not found
+```json
+{
+  "error": "booking not found"
+}
+```
+
+- `403 Forbidden` - You can only cancel your own bookings
+```json
+{
+  "error": "you can only cancel your own bookings"
+}
+```
+
+- `400 Bad Request` - Booking is already cancelled
+```json
+{
+  "error": "booking is already cancelled"
+}
 ```
 
 ## Testing the API
@@ -203,6 +249,11 @@ curl -X POST http://localhost:8080/bookings \
 4. **Get your bookings:**
 ```bash
 curl http://localhost:8080/bookings
+```
+
+5. **Cancel a booking:**
+```bash
+curl -X DELETE http://localhost:8080/bookings/1
 ```
 
 ### Using Postman
@@ -298,7 +349,8 @@ go build -o api ./cmd/api
 - User authentication with JWT
 - Role-based access control (CLIENT, PROVIDER)
 - Dynamic time slot generation
-- Booking cancellation
 - Email notifications
 - Payment processing
 - Advanced scheduling (recurring slots, exceptions)
+- Booking rescheduling
+- Provider availability management

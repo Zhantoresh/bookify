@@ -60,3 +60,9 @@ func (r *TimeSlotRepository) MarkAsBooked(id int) error {
 	_, err := r.db.Exec(query, id)
 	return err
 }
+
+func (r *TimeSlotRepository) MarkAsUnbooked(id int) error {
+	query := `UPDATE time_slots SET is_booked = false WHERE id = $1`
+	_, err := r.db.Exec(query, id)
+	return err
+}
