@@ -41,7 +41,8 @@ func (s *SpecialistService) GetSpecialistWithSlots(id int) (*SpecialistWithSlots
 		return nil, errors.New("specialist not found")
 	}
 
-	slots, err := s.timeSlotRepo.GetBySpecialistID(id)
+	// Get time slots for this specialist (user)
+	slots, err := s.timeSlotRepo.GetByUserID(id)
 	if err != nil {
 		return nil, err
 	}

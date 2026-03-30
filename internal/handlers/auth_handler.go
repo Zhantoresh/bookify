@@ -20,6 +20,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Email    string      `json:"email"`
 		Password string      `json:"password"`
+		Name     string      `json:"name"`
 		Role     domain.Role `json:"role"`
 	}
 
@@ -28,7 +29,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.usecase.Register(input.Email, input.Password, input.Role)
+	user, err := h.usecase.Register(input.Email, input.Password, input.Name, input.Role)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
