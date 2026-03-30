@@ -74,7 +74,7 @@ func (s *BookingService) CreateBookingWithDetails(userID, timeSlotID int) (*doma
 	}
 
 	// Get specialist info
-	specialist, err := s.specialistRepo.GetByID(timeSlot.SpecialistID)
+	specialist, err := s.specialistRepo.GetByID(timeSlot.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (s *BookingService) GetUserBookings(userID int) ([]domain.BookingResponse, 
 			continue
 		}
 
-		specialist, err := s.specialistRepo.GetByID(timeSlot.SpecialistID)
+		specialist, err := s.specialistRepo.GetByID(timeSlot.UserID)
 		if err != nil {
 			return nil, err
 		}

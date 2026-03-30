@@ -14,10 +14,11 @@ func NewSpecialistRepository(db *sql.DB) *SpecialistRepository {
 	return &SpecialistRepository{db: db}
 }
 
+// GetAll returns all specialists (users with role 'specialist')
 func (r *SpecialistRepository) GetAll() ([]domain.Specialist, error) {
-	query := `SELECT id, name, type FROM specialists ORDER BY id`
+	query := `SELECT id, name FROM users WHERE role = $1 ORDER BY id`
 
-	rows, err := r.db.Query(query)
+	rows, err := r.db.Query(query, domain.RoleSpecialist)
 	if err != nil {
 		return nil, err
 	}
@@ -25,12 +26,17 @@ func (r *SpecialistRepository) GetAll() ([]domain.Specialist, error) {
 
 	var specialists []domain.Specialist
 	for rows.Next() {
-		var spec domain.Specialist
-		err := rows.Scan(&spec.ID, &spec.Name, &spec.Type)
+		var id int
+		var name string
+		err := rows.Scan(&id, &name)
 		if err != nil {
 			return nil, err
 		}
-		specialists = append(specialists, spec)
+		specialists = append(specialists, domain.Specialist{
+			ID:   id,
+			Name: name,
+			Type: "specialist", // Default type
+		})
 	}
 
 	if err = rows.Err(); err != nil {
@@ -40,11 +46,13 @@ func (r *SpecialistRepository) GetAll() ([]domain.Specialist, error) {
 	return specialists, nil
 }
 
+// GetByID returns a specialist by user ID
 func (r *SpecialistRepository) GetByID(id int) (*domain.Specialist, error) {
-	query := `SELECT id, name, type FROM specialists WHERE id = $1`
+	query := `SELECT id, name FROM users WHERE id = $1 AND role = $2`
 
-	var spec domain.Specialist
-	err := r.db.QueryRow(query, id).Scan(&spec.ID, &spec.Name, &spec.Type)
+	var specID int
+	var name string
+	err := r.db.QueryRow(query, id, domain.RoleSpecialist).Scan(&specID, &name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -52,5 +60,9 @@ func (r *SpecialistRepository) GetByID(id int) (*domain.Specialist, error) {
 		return nil, err
 	}
 
-	return &spec, nil
+	return &domain.Specialist{
+		ID:   specID,
+		Name: name,
+		Type: "specialist",
+	}, nil
 }
