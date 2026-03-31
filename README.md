@@ -20,6 +20,7 @@ Follows Clean Architecture principles with clear separation of concerns:
 - Booking status tracking (BOOKED / CANCELLED)
 - Prevents double booking of the same time slot
 - Ownership validation (can only cancel own bookings)
+- Asynchronous notifications for time slot creation and booking confirmation
 
 ## Tech Stack
 
@@ -50,6 +51,20 @@ This will:
 - Start a PostgreSQL database
 - Run migrations automatically
 - Start the API server on `http://localhost:8080`
+
+### Notifications
+
+The application sends notifications asynchronously using goroutines and a buffered queue.
+
+Current events:
+- Time slot created
+- Booking confirmed
+
+For now the notification transport is a logger sender, so successful delivery is visible in API logs:
+
+```text
+notification sent to=client@test.com subject="Booking confirmed" body="Hello, Client One. Your booking with Spec One for 2026-04-01T10:00:00Z is confirmed."
+```
 
 ### Stopping the Application
 
@@ -257,6 +272,74 @@ curl -X DELETE http://localhost:8080/bookings/1
 ```
 
 ### Using Postman
+
+1. Register a specialist:
+`POST /register`
+
+```json
+{
+  "email": "spec@test.com",
+  "password": "123456",
+  "name": "Spec One",
+  "role": "specialist"
+}
+```
+
+2. Register a client:
+`POST /register`
+
+```json
+{
+  "email": "client@test.com",
+  "password": "123456",
+  "name": "Client One",
+  "role": "client"
+}
+```
+
+3. Login both users through `POST /login` and save the returned JWT tokens.
+
+4. Create a time slot as specialist:
+
+```http
+POST /time-slots
+Authorization: Bearer <specialist_token>
+Content-Type: application/json
+```
+
+```json
+{
+  "time": "2026-04-01T10:00:00Z"
+}
+```
+
+Expected result:
+- HTTP `201 Created`
+- a new time slot ID in response
+- a notification log entry with subject `New time slot created`
+
+5. Create a booking as client:
+
+```http
+POST /bookings
+Authorization: Bearer <client_token>
+Content-Type: application/json
+```
+
+```json
+{
+  "time_slot_id": 1
+}
+```
+
+Expected result:
+- HTTP `201 Created`
+- a notification log entry with subject `Booking confirmed`
+
+6. Negative checks:
+- repeat `POST /bookings` for the same slot and expect `409 Conflict`
+- call `POST /time-slots` with a client token and expect `403 Forbidden`
+- failed requests must not produce new `notification sent ...` log entries
 
 Import the endpoints above into Postman for easier testing.
 
