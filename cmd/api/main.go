@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/bookify/internal/database"
 	"github.com/bookify/internal/domain"
 	"github.com/bookify/internal/handlers"
 	"github.com/bookify/internal/middleware"
+	"github.com/bookify/internal/notification"
 	"github.com/bookify/internal/repository"
 	"github.com/bookify/internal/service"
 	"github.com/bookify/internal/usecase"
@@ -37,14 +40,23 @@ func main() {
 	timeSlotRepo := repository.NewTimeSlotRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	notifier := notification.NewAsyncNotifier(notification.NewLogSender(log.Default()), 2, 32, log.Default())
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := notifier.Close(shutdownCtx); err != nil {
+			log.Printf("Failed to shutdown notifier: %v", err)
+		}
+	}()
 
 	// Initialize usecases
 	userUsecase := usecase.NewUserUsecase(userRepo)
 
 	// Initialize services
 	specialistService := service.NewSpecialistService(specialistRepo, timeSlotRepo)
-	bookingService := service.NewBookingService(bookingRepo, timeSlotRepo, specialistRepo)
-	timeSlotService := service.NewTimeSlotService(timeSlotRepo)
+	bookingService := service.NewBookingService(bookingRepo, timeSlotRepo, specialistRepo, userRepo, notifier)
+	timeSlotService := service.NewTimeSlotService(timeSlotRepo, userRepo, notifier)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userUsecase)
