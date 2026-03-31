@@ -1,26 +1,49 @@
 package service
 
 import (
-	"errors"
 	"time"
 
 	"github.com/bookify/internal/domain"
+	"github.com/bookify/internal/notification"
 	"github.com/bookify/internal/repository"
 )
 
 type TimeSlotService struct {
 	timeSlotRepo *repository.TimeSlotRepository
+	userRepo     *repository.UserRepository
+	notifier     notification.Notifier
 }
 
-func NewTimeSlotService(timeSlotRepo *repository.TimeSlotRepository) *TimeSlotService {
+func NewTimeSlotService(
+	timeSlotRepo *repository.TimeSlotRepository,
+	userRepo *repository.UserRepository,
+	notifier notification.Notifier,
+) *TimeSlotService {
+	if notifier == nil {
+		notifier = notification.NewNoopNotifier()
+	}
+
 	return &TimeSlotService{
 		timeSlotRepo: timeSlotRepo,
+		userRepo:     userRepo,
+		notifier:     notifier,
 	}
 }
 
 // CreateTimeSlot creates a new time slot for the authenticated specialist
 func (s *TimeSlotService) CreateTimeSlot(userID int, slotTime time.Time) (*domain.TimeSlot, error) {
-	return s.timeSlotRepo.CreateTimeSlot(userID, slotTime)
+	slot, err := s.timeSlotRepo.CreateTimeSlot(userID, slotTime)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.userRepo != nil {
+		if user, userErr := s.userRepo.GetByID(userID); userErr == nil && user != nil {
+			s.notifier.Notify(notification.BuildTimeSlotCreatedMessage(user.Email, user.Name, slot.Time))
+		}
+	}
+
+	return slot, nil
 }
 
 // GetMyTimeSlots returns all time slots for the authenticated specialist
@@ -36,11 +59,11 @@ func (s *TimeSlotService) UpdateTimeSlot(slotID, userID int, slotTime time.Time)
 	}
 
 	if slot == nil {
-		return errors.New("time slot not found")
+		return ErrTimeSlotNotFound
 	}
 
 	if slot.UserID != userID {
-		return errors.New("forbidden")
+		return ErrForbidden
 	}
 
 	return s.timeSlotRepo.UpdateTimeSlot(slotID, slotTime)
@@ -54,11 +77,11 @@ func (s *TimeSlotService) DeleteTimeSlot(slotID, userID int) error {
 	}
 
 	if slot == nil {
-		return errors.New("time slot not found")
+		return ErrTimeSlotNotFound
 	}
 
 	if slot.UserID != userID {
-		return errors.New("forbidden")
+		return ErrForbidden
 	}
 
 	return s.timeSlotRepo.DeleteTimeSlot(slotID)

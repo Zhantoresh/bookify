@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -120,11 +121,11 @@ func (h *TimeSlotHandler) updateTimeSlot(w http.ResponseWriter, r *http.Request)
 
 	err = h.timeSlotService.UpdateTimeSlot(id, userID, slotTime)
 	if err != nil {
-		if err.Error() == "time slot not found" {
+		if errors.Is(err, service.ErrTimeSlotNotFound) {
 			respondError(w, http.StatusNotFound, "time slot not found")
 			return
 		}
-		if err.Error() == "forbidden" {
+		if errors.Is(err, service.ErrForbidden) {
 			respondError(w, http.StatusForbidden, "you can only manage your own time slots")
 			return
 		}
@@ -151,11 +152,11 @@ func (h *TimeSlotHandler) deleteTimeSlot(w http.ResponseWriter, r *http.Request)
 
 	err = h.timeSlotService.DeleteTimeSlot(id, userID)
 	if err != nil {
-		if err.Error() == "time slot not found" {
+		if errors.Is(err, service.ErrTimeSlotNotFound) {
 			respondError(w, http.StatusNotFound, "time slot not found")
 			return
 		}
-		if err.Error() == "forbidden" {
+		if errors.Is(err, service.ErrForbidden) {
 			respondError(w, http.StatusForbidden, "you can only manage your own time slots")
 			return
 		}
