@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -115,11 +116,11 @@ func (h *Handler) createBooking(w http.ResponseWriter, r *http.Request) {
 
 	bookingResponse, err := h.bookingService.CreateBookingWithDetails(userID, req.TimeSlotID)
 	if err != nil {
-		if err.Error() == "this slot is already booked" {
+		if errors.Is(err, service.ErrBookingAlreadyBooked) {
 			respondError(w, http.StatusConflict, "this slot is already booked")
 			return
 		}
-		if err.Error() == "time slot not found" {
+		if errors.Is(err, service.ErrTimeSlotNotFound) {
 			respondError(w, http.StatusNotFound, "time slot not found")
 			return
 		}
@@ -157,15 +158,15 @@ func (h *Handler) cancelBooking(w http.ResponseWriter, r *http.Request, bookingI
 
 	err := h.bookingService.CancelBooking(userID, bookingID)
 	if err != nil {
-		if err.Error() == "booking not found" {
+		if errors.Is(err, service.ErrBookingNotFound) {
 			respondError(w, http.StatusNotFound, "booking not found")
 			return
 		}
-		if err.Error() == "forbidden" {
+		if errors.Is(err, service.ErrForbidden) {
 			respondError(w, http.StatusForbidden, "you can only cancel your own bookings")
 			return
 		}
-		if err.Error() == "booking is already cancelled" {
+		if errors.Is(err, service.ErrBookingAlreadyCancelled) {
 			respondError(w, http.StatusBadRequest, "booking is already cancelled")
 			return
 		}

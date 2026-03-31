@@ -1,13 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/bookify/internal/database"
+	"github.com/bookify/internal/domain"
 	"github.com/bookify/internal/handlers"
 	"github.com/bookify/internal/middleware"
+	"github.com/bookify/internal/notification"
 	"github.com/bookify/internal/repository"
 	"github.com/bookify/internal/service"
 	"github.com/bookify/internal/usecase"
@@ -36,19 +40,28 @@ func main() {
 	timeSlotRepo := repository.NewTimeSlotRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
 	userRepo := repository.NewUserRepository(db)
+	notifier := notification.NewAsyncNotifier(notification.NewLogSender(log.Default()), 2, 32, log.Default())
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := notifier.Close(shutdownCtx); err != nil {
+			log.Printf("Failed to shutdown notifier: %v", err)
+		}
+	}()
 
 	// Initialize usecases
 	userUsecase := usecase.NewUserUsecase(userRepo)
 
-	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userUsecase)
-
 	// Initialize services
 	specialistService := service.NewSpecialistService(specialistRepo, timeSlotRepo)
-	bookingService := service.NewBookingService(bookingRepo, timeSlotRepo, specialistRepo)
+	bookingService := service.NewBookingService(bookingRepo, timeSlotRepo, specialistRepo, userRepo, notifier)
+	timeSlotService := service.NewTimeSlotService(timeSlotRepo, userRepo, notifier)
 
-	// Initialize booking handlers
+	// Initialize handlers
+	authHandler := handlers.NewAuthHandler(userUsecase)
 	bookingHandler := handlers.NewHandler(specialistService, bookingService)
+	timeSlotHandler := handlers.NewTimeSlotHandler(timeSlotService)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
@@ -62,6 +75,11 @@ func main() {
 	// Protected routes (require auth)
 	mux.Handle("/bookings", middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.HandleBookings)))
 	mux.Handle("/bookings/", middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.HandleBookingsByID)))
+
+	// Time slot management routes (specialist only - require auth and role check)
+	specialistOnly := middleware.RoleMiddleware(string(domain.RoleSpecialist))
+	mux.Handle("/time-slots", middleware.AuthMiddleware(specialistOnly(http.HandlerFunc(timeSlotHandler.HandleTimeSlots))))
+	mux.Handle("/time-slots/", middleware.AuthMiddleware(specialistOnly(http.HandlerFunc(timeSlotHandler.HandleTimeSlotsWithID))))
 
 	// Start server
 	addr := getEnv("SERVER_ADDR", ":8080")
