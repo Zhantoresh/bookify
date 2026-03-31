@@ -1,9 +1,8 @@
 package service
 
 import (
-	"errors"
-
 	"github.com/bookify/internal/domain"
+	"github.com/bookify/internal/notification"
 	"github.com/bookify/internal/repository"
 )
 
@@ -11,17 +10,27 @@ type BookingService struct {
 	bookingRepo    *repository.BookingRepository
 	timeSlotRepo   *repository.TimeSlotRepository
 	specialistRepo *repository.SpecialistRepository
+	userRepo       *repository.UserRepository
+	notifier       notification.Notifier
 }
 
 func NewBookingService(
 	bookingRepo *repository.BookingRepository,
 	timeSlotRepo *repository.TimeSlotRepository,
 	specialistRepo *repository.SpecialistRepository,
+	userRepo *repository.UserRepository,
+	notifier notification.Notifier,
 ) *BookingService {
+	if notifier == nil {
+		notifier = notification.NewNoopNotifier()
+	}
+
 	return &BookingService{
 		bookingRepo:    bookingRepo,
 		timeSlotRepo:   timeSlotRepo,
 		specialistRepo: specialistRepo,
+		userRepo:       userRepo,
+		notifier:       notifier,
 	}
 }
 
@@ -33,12 +42,12 @@ func (s *BookingService) CreateBooking(userID, timeSlotID int) (*domain.Booking,
 	}
 
 	if timeSlot == nil {
-		return nil, errors.New("time slot not found")
+		return nil, ErrTimeSlotNotFound
 	}
 
 	// Check if slot is already booked
 	if timeSlot.IsBooked {
-		return nil, errors.New("this slot is already booked")
+		return nil, ErrBookingAlreadyBooked
 	}
 
 	// Create booking
@@ -70,17 +79,23 @@ func (s *BookingService) CreateBookingWithDetails(userID, timeSlotID int) (*doma
 	}
 
 	if timeSlot == nil {
-		return nil, errors.New("time slot not found")
+		return nil, ErrTimeSlotNotFound
 	}
 
 	// Get specialist info
-	specialist, err := s.specialistRepo.GetByID(timeSlot.SpecialistID)
+	specialist, err := s.specialistRepo.GetByID(timeSlot.UserID)
 	if err != nil {
 		return nil, err
 	}
 
 	if specialist == nil {
-		return nil, errors.New("specialist not found")
+		return nil, ErrSpecialistNotFound
+	}
+
+	if s.userRepo != nil {
+		if user, userErr := s.userRepo.GetByID(userID); userErr == nil && user != nil {
+			s.notifier.Notify(notification.BuildBookingCreatedMessage(user.Email, user.Name, specialist.Name, timeSlot.Time))
+		}
 	}
 
 	return &domain.CreateBookingResponse{
@@ -99,17 +114,17 @@ func (s *BookingService) CancelBooking(userID, bookingID int) error {
 	}
 
 	if booking == nil {
-		return errors.New("booking not found")
+		return ErrBookingNotFound
 	}
 
 	// Check ownership
 	if booking.UserID != userID {
-		return errors.New("forbidden")
+		return ErrForbidden
 	}
 
 	// Check if already cancelled
 	if booking.Status == "CANCELLED" {
-		return errors.New("booking is already cancelled")
+		return ErrBookingAlreadyCancelled
 	}
 
 	// Cancel booking
@@ -145,7 +160,7 @@ func (s *BookingService) GetUserBookings(userID int) ([]domain.BookingResponse, 
 			continue
 		}
 
-		specialist, err := s.specialistRepo.GetByID(timeSlot.SpecialistID)
+		specialist, err := s.specialistRepo.GetByID(timeSlot.UserID)
 		if err != nil {
 			return nil, err
 		}

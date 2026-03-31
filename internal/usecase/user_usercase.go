@@ -17,7 +17,7 @@ func NewUserUsecase(repo *repository.UserRepository) *UserUsecase {
 	return &UserUsecase{repo: repo}
 }
 
-func (u *UserUsecase) Register(email, password string, role domain.Role) (*domain.User, error) {
+func (u *UserUsecase) Register(email, password, name string, role domain.Role) (*domain.User, error) {
 	hashedPassword, err := u.HashPassword(password)
 	if err != nil {
 		return nil, err
@@ -25,6 +25,7 @@ func (u *UserUsecase) Register(email, password string, role domain.Role) (*domai
 
 	user := &domain.User{
 		Email:        email,
+		Name:         name,
 		PasswordHash: hashedPassword,
 		Role:         role,
 	}
