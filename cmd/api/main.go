@@ -81,6 +81,10 @@ func main() {
 	mux.Handle("/time-slots", middleware.AuthMiddleware(specialistOnly(http.HandlerFunc(timeSlotHandler.HandleTimeSlots))))
 	mux.Handle("/time-slots/", middleware.AuthMiddleware(specialistOnly(http.HandlerFunc(timeSlotHandler.HandleTimeSlotsWithID))))
 
+	// Admin routes (require auth and admin role check)
+	adminOnly := middleware.RoleMiddleware(string(domain.RoleAdmin))
+	mux.Handle("/admin/dashboard", middleware.AuthMiddleware(adminOnly(http.HandlerFunc(handlers.AdminDashboard))))
+
 	// Start server
 	addr := getEnv("SERVER_ADDR", ":8080")
 	log.Printf("Starting server on %s", addr)
