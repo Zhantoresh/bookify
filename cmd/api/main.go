@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -18,6 +19,14 @@ import (
 )
 
 func main() {
+
+
+	// Logger initialization
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug, 
+	}))
+	slog.SetDefault(logger)
+
 	// Database configuration
 	dbConfig := database.Config{
 		Host:     getEnv("DB_HOST", "localhost"),
@@ -31,32 +40,35 @@ func main() {
 	// Connect to database
 	db, err := database.NewDB(dbConfig)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
+	logger.Info("Database connection established")
 
 	// Initialize repositories
 	specialistRepo := repository.NewSpecialistRepository(db)
 	timeSlotRepo := repository.NewTimeSlotRepository(db)
 	bookingRepo := repository.NewBookingRepository(db)
 	userRepo := repository.NewUserRepository(db)
+
 	notifier := notification.NewAsyncNotifier(notification.NewLogSender(log.Default()), 2, 32, log.Default())
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
 		if err := notifier.Close(shutdownCtx); err != nil {
-			log.Printf("Failed to shutdown notifier: %v", err)
+			logger.Error("Failed to shutdown notifier", "error", err)
 		}
 	}()
 
 	// Initialize usecases
-	userUsecase := usecase.NewUserUsecase(userRepo)
+	userUsecase := usecase.NewUserUsecase(userRepo, logger)
 
 	// Initialize services
 	specialistService := service.NewSpecialistService(specialistRepo, timeSlotRepo)
-	bookingService := service.NewBookingService(bookingRepo, timeSlotRepo, specialistRepo, userRepo, notifier)
-	timeSlotService := service.NewTimeSlotService(timeSlotRepo, userRepo, notifier)
+	bookingService := service.NewBookingService(bookingRepo, timeSlotRepo, specialistRepo, userRepo, notifier, logger)
+	timeSlotService := service.NewTimeSlotService(timeSlotRepo, userRepo, notifier, logger)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userUsecase)
@@ -85,11 +97,16 @@ func main() {
 	adminOnly := middleware.RoleMiddleware(string(domain.RoleAdmin))
 	mux.Handle("/admin/dashboard", middleware.AuthMiddleware(adminOnly(http.HandlerFunc(handlers.AdminDashboard))))
 
+
+	finalHandler := middleware.LoggingMiddleware(logger)(mux)
+	
 	// Start server
 	addr := getEnv("SERVER_ADDR", ":8080")
-	log.Printf("Starting server on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server failed: %v", err)
+	logger.Info("Starting server", "addr", addr)
+
+	if err := http.ListenAndServe(addr, finalHandler); err != nil && err != http.ErrServerClosed {
+		logger.Error("Server failed", "error", err)
+		os.Exit(1)
 	}
 }
 
