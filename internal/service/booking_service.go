@@ -1,6 +1,8 @@
 package service
 
 import (
+	"log/slog"
+
 	"github.com/bookify/internal/domain"
 	"github.com/bookify/internal/notification"
 	"github.com/bookify/internal/repository"
@@ -12,6 +14,7 @@ type BookingService struct {
 	specialistRepo *repository.SpecialistRepository
 	userRepo       *repository.UserRepository
 	notifier       notification.Notifier
+	logger         *slog.Logger
 }
 
 func NewBookingService(
@@ -20,9 +23,13 @@ func NewBookingService(
 	specialistRepo *repository.SpecialistRepository,
 	userRepo *repository.UserRepository,
 	notifier notification.Notifier,
+	logger *slog.Logger,
 ) *BookingService {
 	if notifier == nil {
 		notifier = notification.NewNoopNotifier()
+	}
+	if logger == nil {
+		logger = slog.Default()
 	}
 
 	return &BookingService{
@@ -31,11 +38,11 @@ func NewBookingService(
 		specialistRepo: specialistRepo,
 		userRepo:       userRepo,
 		notifier:       notifier,
+		logger:         logger,
 	}
 }
 
 func (s *BookingService) CreateBooking(userID, timeSlotID int) (*domain.Booking, error) {
-	// Check if time slot exists
 	timeSlot, err := s.timeSlotRepo.GetByID(timeSlotID)
 	if err != nil {
 		return nil, err
@@ -45,34 +52,35 @@ func (s *BookingService) CreateBooking(userID, timeSlotID int) (*domain.Booking,
 		return nil, ErrTimeSlotNotFound
 	}
 
-	// Check if slot is already booked
 	if timeSlot.IsBooked {
 		return nil, ErrBookingAlreadyBooked
 	}
 
-	// Create booking
 	booking, err := s.bookingRepo.Create(userID, timeSlotID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Mark slot as booked
 	err = s.timeSlotRepo.MarkAsBooked(timeSlotID)
 	if err != nil {
 		return nil, err
 	}
 
+	s.logger.Info("booking created",
+		"user_id", userID,
+		"booking_id", booking.ID,
+		"time_slot_id", timeSlotID,
+	)
+
 	return booking, nil
 }
 
 func (s *BookingService) CreateBookingWithDetails(userID, timeSlotID int) (*domain.CreateBookingResponse, error) {
-	// Create booking
 	booking, err := s.CreateBooking(userID, timeSlotID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get time slot info
 	timeSlot, err := s.timeSlotRepo.GetByID(booking.TimeSlotID)
 	if err != nil {
 		return nil, err
@@ -82,7 +90,6 @@ func (s *BookingService) CreateBookingWithDetails(userID, timeSlotID int) (*doma
 		return nil, ErrTimeSlotNotFound
 	}
 
-	// Get specialist info
 	specialist, err := s.specialistRepo.GetByID(timeSlot.UserID)
 	if err != nil {
 		return nil, err
@@ -107,7 +114,6 @@ func (s *BookingService) CreateBookingWithDetails(userID, timeSlotID int) (*doma
 }
 
 func (s *BookingService) CancelBooking(userID, bookingID int) error {
-	// Get booking
 	booking, err := s.bookingRepo.GetByID(bookingID)
 	if err != nil {
 		return err
@@ -117,27 +123,29 @@ func (s *BookingService) CancelBooking(userID, bookingID int) error {
 		return ErrBookingNotFound
 	}
 
-	// Check ownership
 	if booking.UserID != userID {
 		return ErrForbidden
 	}
 
-	// Check if already cancelled
 	if booking.Status == "CANCELLED" {
 		return ErrBookingAlreadyCancelled
 	}
 
-	// Cancel booking
 	err = s.bookingRepo.CancelByID(bookingID)
 	if err != nil {
 		return err
 	}
 
-	// Free up the slot
 	err = s.timeSlotRepo.MarkAsUnbooked(booking.TimeSlotID)
 	if err != nil {
 		return err
 	}
+
+	s.logger.Info("booking cancelled",
+		"user_id", userID,
+		"booking_id", bookingID,
+		"time_slot_id", booking.TimeSlotID,
+	)
 
 	return nil
 }

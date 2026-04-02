@@ -1,6 +1,7 @@
 package service
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/bookify/internal/domain"
@@ -12,21 +13,27 @@ type TimeSlotService struct {
 	timeSlotRepo *repository.TimeSlotRepository
 	userRepo     *repository.UserRepository
 	notifier     notification.Notifier
+	logger       *slog.Logger
 }
 
 func NewTimeSlotService(
 	timeSlotRepo *repository.TimeSlotRepository,
 	userRepo *repository.UserRepository,
 	notifier notification.Notifier,
+	logger *slog.Logger,
 ) *TimeSlotService {
 	if notifier == nil {
 		notifier = notification.NewNoopNotifier()
+	}
+	if logger == nil {
+		logger = slog.Default()
 	}
 
 	return &TimeSlotService{
 		timeSlotRepo: timeSlotRepo,
 		userRepo:     userRepo,
 		notifier:     notifier,
+		logger:       logger,
 	}
 }
 
@@ -42,6 +49,12 @@ func (s *TimeSlotService) CreateTimeSlot(userID int, slotTime time.Time) (*domai
 			s.notifier.Notify(notification.BuildTimeSlotCreatedMessage(user.Email, user.Name, slot.Time))
 		}
 	}
+
+	s.logger.Info("time slot created",
+		"user_id", userID,
+		"time_slot_id", slot.ID,
+		"time", slot.Time,
+	)
 
 	return slot, nil
 }
@@ -66,10 +79,21 @@ func (s *TimeSlotService) UpdateTimeSlot(slotID, userID int, slotTime time.Time)
 		return ErrForbidden
 	}
 
-	return s.timeSlotRepo.UpdateTimeSlot(slotID, slotTime)
+	err = s.timeSlotRepo.UpdateTimeSlot(slotID, slotTime)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Info("time slot updated",
+		"user_id", userID,
+		"time_slot_id", slotID,
+		"time", slotTime,
+	)
+
+	return nil
 }
 
-// DeleteTimeSlot deletes a time slot, ensuring the user owns it
+
 func (s *TimeSlotService) DeleteTimeSlot(slotID, userID int) error {
 	slot, err := s.timeSlotRepo.GetByID(slotID)
 	if err != nil {
@@ -84,5 +108,15 @@ func (s *TimeSlotService) DeleteTimeSlot(slotID, userID int) error {
 		return ErrForbidden
 	}
 
-	return s.timeSlotRepo.DeleteTimeSlot(slotID)
+	err = s.timeSlotRepo.DeleteTimeSlot(slotID)
+	if err != nil {
+		return err
+	}
+
+	s.logger.Info("time slot deleted",
+		"user_id", userID,
+		"time_slot_id", slotID,
+	)
+
+	return nil
 }
