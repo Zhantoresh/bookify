@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,13 +35,13 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 func (h *Handler) GetSpecialists(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
+		logAndRespondError(w, http.StatusMethodNotAllowed, "method not allowed", "method not allowed for /specialists", nil)
 		return
 	}
 
 	specialists, err := h.specialistService.GetAllSpecialists()
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to fetch specialists")
+		logAndRespondError(w, http.StatusInternalServerError, "failed to fetch specialists", "failed to fetch specialists", err)
 		return
 	}
 
@@ -49,20 +50,20 @@ func (h *Handler) GetSpecialists(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetSpecialistByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
+		logAndRespondError(w, http.StatusMethodNotAllowed, "method not allowed", "method not allowed for /specialistsWithSlots/", nil)
 		return
 	}
 
 	idStr := strings.TrimPrefix(r.URL.Path, "/specialistsWithSlots/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid specialist id")
+		logAndRespondError(w, http.StatusBadRequest, "invalid specialist id", "failed to parse specialist id", err)
 		return
 	}
 
 	specialist, err := h.specialistService.GetSpecialistWithSlots(id)
 	if err != nil {
-		respondError(w, http.StatusNotFound, "specialist not found")
+		logAndRespondError(w, http.StatusNotFound, "specialist not found", "failed to fetch specialist with slots", err)
 		return
 	}
 
@@ -76,20 +77,20 @@ func (h *Handler) HandleBookings(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		h.getBookings(w, r)
 	default:
-		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
+		logAndRespondError(w, http.StatusMethodNotAllowed, "method not allowed", "method not allowed for /bookings", nil)
 	}
 }
 
 func (h *Handler) HandleBookingsByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
-		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
+		logAndRespondError(w, http.StatusMethodNotAllowed, "method not allowed", "method not allowed for /bookings/{id}", nil)
 		return
 	}
 
 	idStr := strings.TrimPrefix(r.URL.Path, "/bookings/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid booking id")
+		logAndRespondError(w, http.StatusBadRequest, "invalid booking id", "failed to parse booking id", err)
 		return
 	}
 
@@ -103,28 +104,27 @@ func (h *Handler) createBooking(w http.ResponseWriter, r *http.Request) {
 
 	var req CreateBookingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+		logAndRespondError(w, http.StatusBadRequest, "invalid request body", "failed to decode create booking request", err)
 		return
 	}
 
-	// Get user ID from context (set by auth middleware)
 	userID, ok := r.Context().Value("user_id").(int)
 	if !ok {
-		respondError(w, http.StatusUnauthorized, "unauthorized")
+		logAndRespondError(w, http.StatusUnauthorized, "unauthorized", "user_id not found in request context", nil)
 		return
 	}
 
 	bookingResponse, err := h.bookingService.CreateBookingWithDetails(userID, req.TimeSlotID)
 	if err != nil {
 		if errors.Is(err, service.ErrBookingAlreadyBooked) {
-			respondError(w, http.StatusConflict, "this slot is already booked")
+			logAndRespondError(w, http.StatusConflict, "this slot is already booked", "booking conflict: slot already booked", err)
 			return
 		}
 		if errors.Is(err, service.ErrTimeSlotNotFound) {
-			respondError(w, http.StatusNotFound, "time slot not found")
+			logAndRespondError(w, http.StatusNotFound, "time slot not found", "time slot not found during booking creation", err)
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to create booking")
+		logAndRespondError(w, http.StatusInternalServerError, "failed to create booking", "failed to create booking", err)
 		return
 	}
 
@@ -132,16 +132,15 @@ func (h *Handler) createBooking(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getBookings(w http.ResponseWriter, r *http.Request) {
-	// Get user ID from context (set by auth middleware)
 	userID, ok := r.Context().Value("user_id").(int)
 	if !ok {
-		respondError(w, http.StatusUnauthorized, "unauthorized")
+		logAndRespondError(w, http.StatusUnauthorized, "unauthorized", "user_id not found in request context", nil)
 		return
 	}
 
 	bookings, err := h.bookingService.GetUserBookings(userID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to fetch bookings")
+		logAndRespondError(w, http.StatusInternalServerError, "failed to fetch bookings", "failed to fetch user bookings", err)
 		return
 	}
 
@@ -149,28 +148,27 @@ func (h *Handler) getBookings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) cancelBooking(w http.ResponseWriter, r *http.Request, bookingID int) {
-	// Get user ID from context (set by auth middleware)
 	userID, ok := r.Context().Value("user_id").(int)
 	if !ok {
-		respondError(w, http.StatusUnauthorized, "unauthorized")
+		logAndRespondError(w, http.StatusUnauthorized, "unauthorized", "user_id not found in request context", nil)
 		return
 	}
 
 	err := h.bookingService.CancelBooking(userID, bookingID)
 	if err != nil {
 		if errors.Is(err, service.ErrBookingNotFound) {
-			respondError(w, http.StatusNotFound, "booking not found")
+			logAndRespondError(w, http.StatusNotFound, "booking not found", "booking not found during cancel", err)
 			return
 		}
 		if errors.Is(err, service.ErrForbidden) {
-			respondError(w, http.StatusForbidden, "you can only cancel your own bookings")
+			logAndRespondError(w, http.StatusForbidden, "you can only cancel your own bookings", "forbidden booking cancel attempt", err)
 			return
 		}
 		if errors.Is(err, service.ErrBookingAlreadyCancelled) {
-			respondError(w, http.StatusBadRequest, "booking is already cancelled")
+			logAndRespondError(w, http.StatusBadRequest, "booking is already cancelled", "booking already cancelled", err)
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to cancel booking")
+		logAndRespondError(w, http.StatusInternalServerError, "failed to cancel booking", "failed to cancel booking", err)
 		return
 	}
 
@@ -180,11 +178,25 @@ func (h *Handler) cancelBooking(w http.ResponseWriter, r *http.Request, bookingI
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 func respondError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
+func logAndRespondError(w http.ResponseWriter, status int, clientMessage string, logMessage string, err error) {
+	attrs := []any{
+		slog.Int("status", status),
+		slog.String("client_message", clientMessage),
+	}
+
+	if err != nil {
+		attrs = append(attrs, slog.String("error", err.Error()))
+	}
+
+	slog.Error(logMessage, attrs...)
+	respondError(w, status, clientMessage)
 }
