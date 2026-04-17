@@ -28,7 +28,7 @@ func (h *TimeSlotHandler) HandleTimeSlots(w http.ResponseWriter, r *http.Request
 	case http.MethodGet:
 		h.getMyTimeSlots(w, r)
 	default:
-		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
+		logAndRespondError(w, http.StatusMethodNotAllowed, "method not allowed", "method not allowed for /time-slots", nil)
 	}
 }
 
@@ -39,35 +39,35 @@ func (h *TimeSlotHandler) HandleTimeSlotsWithID(w http.ResponseWriter, r *http.R
 	case http.MethodDelete:
 		h.deleteTimeSlot(w, r)
 	default:
-		respondError(w, http.StatusMethodNotAllowed, "method not allowed")
+		logAndRespondError(w, http.StatusMethodNotAllowed, "method not allowed", "method not allowed for /time-slots/{id}", nil)
 	}
 }
 
 func (h *TimeSlotHandler) createTimeSlot(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(int)
 	if !ok {
-		respondError(w, http.StatusUnauthorized, "user id not found in context")
+		logAndRespondError(w, http.StatusUnauthorized, "user id not found in context", "user_id not found in request context", nil)
 		return
 	}
 
 	var input struct {
-		Time string `json:"time"` // Format: 2006-01-02T15:04:05Z
+		Time string `json:"time"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid input")
+		logAndRespondError(w, http.StatusBadRequest, "invalid input", "failed to decode create time slot request", err)
 		return
 	}
 
 	slotTime, err := time.Parse(time.RFC3339, input.Time)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid time format, use RFC3339")
+		logAndRespondError(w, http.StatusBadRequest, "invalid time format, use RFC3339", "failed to parse time slot time", err)
 		return
 	}
 
 	slot, err := h.timeSlotService.CreateTimeSlot(userID, slotTime)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to create time slot")
+		logAndRespondError(w, http.StatusInternalServerError, "failed to create time slot", "failed to create time slot", err)
 		return
 	}
 
@@ -77,13 +77,13 @@ func (h *TimeSlotHandler) createTimeSlot(w http.ResponseWriter, r *http.Request)
 func (h *TimeSlotHandler) getMyTimeSlots(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(int)
 	if !ok {
-		respondError(w, http.StatusUnauthorized, "user id not found in context")
+		logAndRespondError(w, http.StatusUnauthorized, "user id not found in context", "user_id not found in request context", nil)
 		return
 	}
 
 	slots, err := h.timeSlotService.GetMyTimeSlots(userID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "failed to fetch time slots")
+		logAndRespondError(w, http.StatusInternalServerError, "failed to fetch time slots", "failed to fetch user time slots", err)
 		return
 	}
 
@@ -93,43 +93,43 @@ func (h *TimeSlotHandler) getMyTimeSlots(w http.ResponseWriter, r *http.Request)
 func (h *TimeSlotHandler) updateTimeSlot(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(int)
 	if !ok {
-		respondError(w, http.StatusUnauthorized, "user id not found in context")
+		logAndRespondError(w, http.StatusUnauthorized, "user id not found in context", "user_id not found in request context", nil)
 		return
 	}
 
 	idStr := strings.TrimPrefix(r.URL.Path, "/time-slots/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid time slot id")
+		logAndRespondError(w, http.StatusBadRequest, "invalid time slot id", "failed to parse time slot id", err)
 		return
 	}
 
 	var input struct {
-		Time string `json:"time"` // Format: 2006-01-02T15:04:05Z
+		Time string `json:"time"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid input")
+		logAndRespondError(w, http.StatusBadRequest, "invalid input", "failed to decode update time slot request", err)
 		return
 	}
 
 	slotTime, err := time.Parse(time.RFC3339, input.Time)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid time format, use RFC3339")
+		logAndRespondError(w, http.StatusBadRequest, "invalid time format, use RFC3339", "failed to parse updated time slot time", err)
 		return
 	}
 
 	err = h.timeSlotService.UpdateTimeSlot(id, userID, slotTime)
 	if err != nil {
 		if errors.Is(err, service.ErrTimeSlotNotFound) {
-			respondError(w, http.StatusNotFound, "time slot not found")
+			logAndRespondError(w, http.StatusNotFound, "time slot not found", "time slot not found during update", err)
 			return
 		}
 		if errors.Is(err, service.ErrForbidden) {
-			respondError(w, http.StatusForbidden, "you can only manage your own time slots")
+			logAndRespondError(w, http.StatusForbidden, "you can only manage your own time slots", "forbidden time slot update attempt", err)
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to update time slot")
+		logAndRespondError(w, http.StatusInternalServerError, "failed to update time slot", "failed to update time slot", err)
 		return
 	}
 
@@ -139,28 +139,28 @@ func (h *TimeSlotHandler) updateTimeSlot(w http.ResponseWriter, r *http.Request)
 func (h *TimeSlotHandler) deleteTimeSlot(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("user_id").(int)
 	if !ok {
-		respondError(w, http.StatusUnauthorized, "user id not found in context")
+		logAndRespondError(w, http.StatusUnauthorized, "user id not found in context", "user_id not found in request context", nil)
 		return
 	}
 
 	idStr := strings.TrimPrefix(r.URL.Path, "/time-slots/")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "invalid time slot id")
+		logAndRespondError(w, http.StatusBadRequest, "invalid time slot id", "failed to parse time slot id", err)
 		return
 	}
 
 	err = h.timeSlotService.DeleteTimeSlot(id, userID)
 	if err != nil {
 		if errors.Is(err, service.ErrTimeSlotNotFound) {
-			respondError(w, http.StatusNotFound, "time slot not found")
+			logAndRespondError(w, http.StatusNotFound, "time slot not found", "time slot not found during delete", err)
 			return
 		}
 		if errors.Is(err, service.ErrForbidden) {
-			respondError(w, http.StatusForbidden, "you can only manage your own time slots")
+			logAndRespondError(w, http.StatusForbidden, "you can only manage your own time slots", "forbidden time slot delete attempt", err)
 			return
 		}
-		respondError(w, http.StatusInternalServerError, "failed to delete time slot")
+		logAndRespondError(w, http.StatusInternalServerError, "failed to delete time slot", "failed to delete time slot", err)
 		return
 	}
 
