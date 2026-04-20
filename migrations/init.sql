@@ -1,2 +1,0 @@
--- Migrations are managed by golang-migrate
--- Run: migrate -path migrations -database "postgres://user:pass@localhost:5432/bookify?sslmode=disable" up

@@ -1,439 +1,90 @@
-# Bookify - Appointment Booking System
+# Booking System API
 
-MVP implementation of a REST API service for managing schedules and booking appointments with specialists.
+REST API for appointment booking with JWT authentication, RBAC, PostgreSQL, migrations, background workers, and Docker-based local setup.
 
-## Architecture
+## Structure
 
-Follows Clean Architecture principles with clear separation of concerns:
-- **Handlers**: HTTP layer, handles requests and responses
-- **Services**: Business logic layer
-- **Repositories**: Data access layer
-- **Domain**: Core entities
+The project follows the `cmd/internal/pkg` layout and includes:
 
-## Features
+- `cmd/api` for application bootstrap and graceful shutdown
+- `internal/domain` for `users`, `services`, and `appointments`
+- `internal/repository/postgres` for PostgreSQL persistence
+- `internal/service` for auth, services, and appointments business logic
+- `internal/transport/http` for handlers, middleware, and routing
+- `internal/worker` for reminders and async task execution
+- `migrations`, `seeds`, `docs`, and `tests`
 
-- Browse available specialists (barber, dentist, psychologist)
-- View available time slots for each specialist
-- Book available time slots
-- View your bookings with specialist details and status
-- Cancel bookings (slots become available again)
-- Booking status tracking (BOOKED / CANCELLED)
-- Prevents double booking of the same time slot
-- Ownership validation (can only cancel own bookings)
-- Asynchronous notifications for time slot creation and booking confirmation
-
-## Tech Stack
-
-- Go 1.21
-- PostgreSQL 15
-- docker-compose
-- golang-migrate
-
-## Quick Start
-
-### Prerequisites
-- Docker
-- Docker Compose
-
-### Running the Application
-
-1. Clone the repository
-```bash
-cd bookify
-```
-
-2. Build and start the application with Docker Compose
-```bash
-docker-compose up --build
-```
-
-This will:
-- Start a PostgreSQL database
-- Run migrations automatically
-- Start the API server on `http://localhost:8080`
-
-### Notifications
-
-The application sends notifications asynchronously using goroutines and a buffered queue.
-
-Current events:
-- Time slot created
-- Booking confirmed
-
-For now the notification transport is a logger sender, so successful delivery is visible in API logs:
-
-```text
-notification sent to=client@test.com subject="Booking confirmed" body="Hello, Client One. Your booking with Spec One for 2026-04-01T10:00:00Z is confirmed."
-```
-
-### Stopping the Application
+## Quick start
 
 ```bash
-docker-compose down
+cp .env.example .env
+docker compose up --build
 ```
 
-To remove data as well:
+API is available at `http://localhost:8080`.
+
+## Main endpoints
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/services`
+- `GET /api/v1/services`
+- `POST /api/v1/appointments`
+- `GET /api/v1/appointments/my`
+- `GET /api/v1/appointments/available-slots`
+- `GET /health`
+
+## Local development
+
 ```bash
-docker-compose down -v
+make run
+make test
+make migrate-up
 ```
 
-## API Endpoints
+## Postman testing
 
-### 1. Get All Specialists
-```
-GET /specialists
-```
+Import:
 
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "name": "John Smith",
-    "type": "barber"
-  },
-  {
-    "id": 2,
-    "name": "Dr. Sarah Johnson",
-    "type": "dentist"
-  },
-  {
-    "id": 3,
-    "name": "Dr. Michael Lee",
-    "type": "psychologist"
-  }
-]
-```
+- `docs/postman_collection.json`
+- `docs/postman_environment.json`
 
-### 2. Get Specialist with Available Time Slots
-```
-GET /specialistsWithSlots/{id}
-```
+Recommended order:
 
-**Example Request:**
-```
-GET /specialistsWithSlots/1
-```
+1. `00 Setup -> Health Check`
+2. `01 Auth -> Register Provider`
+3. `01 Auth -> Register Client`
+4. `01 Auth -> Login Provider`
+5. `00 Setup -> Set Provider Token`
+6. `01 Auth -> Validate Active Token`
+7. `02 Provider Flow -> Create Service`
+8. `02 Provider Flow -> List My Services`
+9. `03 Public Checks -> List Services`
+10. `03 Public Checks -> Get Available Slots`
+11. `01 Auth -> Login Client`
+12. `00 Setup -> Set Client Token`
+13. `04 Client Flow -> Create Appointment`
+14. `04 Client Flow -> List My Appointments`
+15. `04 Client Flow -> Get Appointment By ID`
+16. `00 Setup -> Set Provider Token`
+17. `05 Provider Appointment Actions -> Provider List My Appointments`
+18. `05 Provider Appointment Actions -> Confirm Appointment`
 
-**Response:**
-```json
-{
-  "specialist": {
-    "id": 1,
-    "name": "John Smith",
-    "type": "barber"
-  },
-  "time_slots": [
-    {
-      "id": 1,
-      "specialist_id": 1,
-      "time": "2026-03-27T09:00:00Z",
-      "is_booked": false
-    },
-    {
-      "id": 2,
-      "specialist_id": 1,
-      "time": "2026-03-27T10:00:00Z",
-      "is_booked": false
-    }
-  ]
-}
-```
+Optional:
 
-### 3. Create a Booking
-```
-POST /bookings
-Content-Type: application/json
-```
+19. `06 Negative Cases -> Client Cannot Confirm Appointment`
+20. `06 Negative Cases -> Booking In The Past Fails`
 
-**Request Body:**
-```json
-{
-  "time_slot_id": 1
-}
-```
+What the collection does automatically:
 
-**Success Response (201 Created):**
-```json
-{
-  "id": 1,
-  "specialist": "John Smith",
-  "time": "2026-03-27T09:00:00Z",
-  "status": "BOOKED"
-}
-```
+- saves `provider_token` and `client_token`
+- switches active bearer token through `Set Provider Token` and `Set Client Token`
+- saves `service_id` after service creation
+- saves `appointment_id` after appointment creation
 
-**Error Responses:**
-- `409 Conflict` - Slot already booked
-```json
-{
-  "error": "this slot is already booked"
-}
-```
+Important:
 
-- `404 Not Found` - Time slot not found
-```json
-{
-  "error": "time slot not found"
-}
-```
-
-### 4. Get Your Bookings
-```
-GET /bookings
-```
-
-**Response:**
-```json
-[
-  {
-    "id": 1,
-    "specialist": "John Smith",
-    "time": "2026-03-27T09:00:00Z",
-    "status": "BOOKED"
-  },
-  {
-    "id": 2,
-    "specialist": "Dr. Sarah Johnson",
-    "time": "2026-03-28T10:00:00Z",
-    "status": "CANCELLED"
-  }
-]
-```
-
-### 5. Cancel a Booking
-```
-DELETE /bookings/{id}
-```
-
-**Example Request:**
-```
-DELETE /bookings/1
-```
-
-**Success Response (200 OK):**
-```json
-{
-  "message": "booking cancelled successfully"
-}
-```
-
-**Error Responses:**
-- `404 Not Found` - Booking not found
-```json
-{
-  "error": "booking not found"
-}
-```
-
-- `403 Forbidden` - You can only cancel your own bookings
-```json
-{
-  "error": "you can only cancel your own bookings"
-}
-```
-
-- `400 Bad Request` - Booking is already cancelled
-```json
-{
-  "error": "booking is already cancelled"
-}
-```
-
-## Testing the API
-
-### Using curl
-
-1. **Get all specialists:**
-```bash
-curl http://localhost:8080/specialists
-```
-
-2. **Get specialist with slots:**
-```bash
-curl http://localhost:8080/specialistsWithSlots/1
-```
-
-3. **Book a time slot:**
-```bash
-curl -X POST http://localhost:8080/bookings \
-  -H "Content-Type: application/json" \
-  -d '{"time_slot_id": 1}'
-```
-
-4. **Get your bookings:**
-```bash
-curl http://localhost:8080/bookings
-```
-
-5. **Cancel a booking:**
-```bash
-curl -X DELETE http://localhost:8080/bookings/1
-```
-
-### Using Postman
-
-1. Register a specialist:
-`POST /register`
-
-```json
-{
-  "email": "spec@test.com",
-  "password": "123456",
-  "name": "Spec One",
-  "role": "specialist"
-}
-```
-
-2. Register a client:
-`POST /register`
-
-```json
-{
-  "email": "client@test.com",
-  "password": "123456",
-  "name": "Client One",
-  "role": "client"
-}
-```
-
-3. Login both users through `POST /login` and save the returned JWT tokens.
-
-4. Create a time slot as specialist:
-
-```http
-POST /time-slots
-Authorization: Bearer <specialist_token>
-Content-Type: application/json
-```
-
-```json
-{
-  "time": "2026-04-01T10:00:00Z"
-}
-```
-
-Expected result:
-- HTTP `201 Created`
-- a new time slot ID in response
-- a notification log entry with subject `New time slot created`
-
-5. Create a booking as client:
-
-```http
-POST /bookings
-Authorization: Bearer <client_token>
-Content-Type: application/json
-```
-
-```json
-{
-  "time_slot_id": 1
-}
-```
-
-Expected result:
-- HTTP `201 Created`
-- a notification log entry with subject `Booking confirmed`
-
-6. Negative checks:
-- repeat `POST /bookings` for the same slot and expect `409 Conflict`
-- call `POST /time-slots` with a client token and expect `403 Forbidden`
-- failed requests must not produce new `notification sent ...` log entries
-
-Import the endpoints above into Postman for easier testing.
-
-## Project Structure
-
-```
-bookify/
-├── cmd/
-│   └── api/
-│       └── main.go                 # Application entry point
-├── internal/
-│   ├── database/
-│   │   └── postgres.go             # Database connection
-│   ├── domain/
-│   │   ├── specialist.go           # Specialist entity
-│   │   ├── time_slot.go            # TimeSlot entity
-│   │   └── booking.go              # Booking entity
-│   ├── handlers/
-│   │   └── handler.go              # HTTP handlers
-│   ├── middleware/
-│   │   └── middleware.go           # HTTP middleware
-│   ├── repository/
-│   │   ├── specialist_repository.go
-│   │   ├── time_slot_repository.go
-│   │   └── booking_repository.go
-│   └── service/
-│       ├── specialist_service.go   # Business logic for specialists
-│       └── booking_service.go      # Business logic for bookings
-├── migrations/
-│   ├── 000001_create_specialists_table.up.sql
-│   ├── 000001_create_specialists_table.down.sql
-│   ├── 000002_create_time_slots_table.up.sql
-│   ├── 000002_create_time_slots_table.down.sql
-│   ├── 000003_create_bookings_table.up.sql
-│   └── 000003_create_bookings_table.down.sql
-├── docker-compose.yml              # Docker services configuration
-├── Dockerfile                       # Application container
-├── go.mod                          # Go module definition
-└── README.md                       # This file
-```
-
-## Development
-
-### Local Development (without Docker)
-
-1. Install Go 1.21 or later
-2. Install PostgreSQL
-3. Set up environment variables:
-```bash
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USER=postgres
-export DB_PASSWORD=postgres
-export DB_NAME=bookify
-export DB_SSLMODE=disable
-```
-
-4. Create the database:
-```bash
-createdb bookify
-```
-
-5. Run migrations:
-```bash
-go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/bookify?sslmode=disable" up
-```
-
-6. Build and run:
-```bash
-go build -o api ./cmd/api
-./api
-```
-
-## Design Decisions
-
-### MVP Simplifications
-- **No Authentication**: Using hardcoded `userId = 1` for all requests
-- **Pre-created Slots**: Time slots are pre-created in migrations
-- **Simple Validation**: Basic checks for slot availability
-
-### Architecture Notes
-- Clean Architecture with clear layer separation
-- Repository pattern for data access
-- Service layer contains all business logic
-- Handlers are thin, delegating to services
-- No external frameworks, using Go standard library
-
-## Future Enhancements
-- User authentication with JWT
-- Role-based access control (CLIENT, PROVIDER)
-- Dynamic time slot generation
-- Email notifications
-- Payment processing
-- Advanced scheduling (recurring slots, exceptions)
-- Booking rescheduling
-- Provider availability management
+- `Create Service` must be called with provider token active
+- `Create Appointment` must be called with client token active
+- `Confirm Appointment` must be called with provider token active
+- `appointment_start_time` must be in the future relative to current date
