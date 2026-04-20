@@ -1,0 +1,1298 @@
+openapi: 3.0.3
+info:
+  title: Bookify - Booking System API
+  version: 1.0.0
+  description: Complete API for managing appointments, services, and user authentication
+  contact:
+    name: API Support
+    url: https://github.com/bookify
+  license:
+    name: MIT
+servers:
+  - url: http://localhost:8080
+    description: Local Development Server
+  - url: https://api.example.com
+    description: Production Server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health Check
+      description: Check if API is running and healthy
+      operationId: healthCheck
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+  /api/v1/auth/register:
+    post:
+      summary: Register New User
+      description: Create a new user account (client or provider)
+      operationId: registerUser
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              client:
+                value:
+                  email: client@example.com
+                  password: SecurePassword123!
+                  full_name: John Doe
+                  role: client
+                  phone: "+1234567890"
+              provider:
+                value:
+                  email: provider@example.com
+                  password: SecurePassword123!
+                  full_name: Dr. Jane Smith
+                  role: provider
+                  phone: "+1234567890"
+      responses:
+        '201':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      summary: Login User
+      description: Authenticate user and receive JWT token
+      operationId: loginUser
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: client@example.com
+              password: SecurePassword123!
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/validate:
+    post:
+      summary: Validate JWT Token
+      description: Verify if the current JWT token is valid
+      operationId: validateToken
+      tags:
+        - Authentication
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenValidation'
+        '401':
+          description: Token is invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/users/me:
+    get:
+      summary: Get Current User
+      description: Retrieve the profile of the authenticated user
+      operationId: getCurrentUser
+      tags:
+        - Users
+      responses:
+        '200':
+          description: Current user data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/services:
+    get:
+      summary: List All Services
+      description: Get all available services (public endpoint)
+      operationId: listServices
+      tags:
+        - Services
+      security: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 20
+        - name: provider_id
+          in: query
+          description: Filter by provider ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
+    post:
+      summary: Create Service
+      description: Create a new service (provider only)
+      operationId: createService
+      tags:
+        - Services
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceRequest'
+            example:
+              name: Dental Checkup
+              description: Complete dental examination
+              price: 150.00
+              duration_minutes: 45
+      responses:
+        '201':
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only providers can create services
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/services/my:
+    get:
+      summary: List My Services
+      description: Get all services of the authenticated provider
+      operationId: listMyServices
+      tags:
+        - Services
+      responses:
+        '200':
+          description: List of provider's services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Service'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only providers can access this resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/services/{id}:
+    get:
+      summary: Get Service by ID
+      description: Retrieve a specific service by its ID
+      operationId: getServiceByID
+      tags:
+        - Services
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Service details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update Service (Full Update)
+      description: Completely replace a service (provider only)
+      operationId: updateService
+      tags:
+        - Services
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceRequest'
+      responses:
+        '200':
+          description: Service updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      summary: Update Service (Partial Update)
+      description: Partially update a service (provider only)
+      operationId: patchService
+      tags:
+        - Services
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchServiceRequest'
+            example:
+              price: 175.00
+              is_active: true
+      responses:
+        '200':
+          description: Service patched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete Service
+      description: Soft delete a service (provider only)
+      operationId: deleteService
+      tags:
+        - Services
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Service deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/appointments:
+    get:
+      summary: List All Appointments
+      description: Get all appointments (admin only)
+      operationId: listAllAppointments
+      tags:
+        - Appointments
+      responses:
+        '200':
+          description: List of all appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only admins can access this
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create Appointment
+      description: Create a new appointment (client only)
+      operationId: createAppointment
+      tags:
+        - Appointments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAppointmentRequest'
+            example:
+              service_id: "svc_123abc"
+              start_time: "2026-04-25T14:00:00Z"
+              notes: "Please call before arrival"
+      responses:
+        '201':
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Validation error (e.g., past time, no available slots)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only clients can create appointments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Time slot conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/appointments/my:
+    get:
+      summary: List My Appointments
+      description: Get appointments for current user (client or provider)
+      operationId: listMyAppointments
+      tags:
+        - Appointments
+      responses:
+        '200':
+          description: List of user's appointments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/appointments/available-slots:
+    get:
+      summary: Get Available Slots
+      description: Get available appointment slots for a service on a specific date
+      operationId: getAvailableSlots
+      tags:
+        - Appointments
+      security: []
+      parameters:
+        - name: service_id
+          in: query
+          required: true
+          description: Service ID
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          description: Date in YYYY-MM-DD format
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Available slots for the service
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available_slots:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        start_time:
+                          type: string
+                          format: date-time
+                        end_time:
+                          type: string
+                          format: date-time
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Service not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/appointments/{id}:
+    get:
+      summary: Get Appointment by ID
+      description: Retrieve appointment details
+      operationId: getAppointmentByID
+      tags:
+        - Appointments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Appointment ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Appointment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/appointments/{id}/confirm:
+    patch:
+      summary: Confirm Appointment
+      description: Provider confirms an appointment
+      operationId: confirmAppointment
+      tags:
+        - Appointments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Appointment ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Appointment confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only provider can confirm
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/appointments/{id}/cancel:
+    patch:
+      summary: Cancel Appointment
+      description: Cancel an appointment with optional reason
+      operationId: cancelAppointment
+      tags:
+        - Appointments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Appointment ID
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancellation_reason:
+                  type: string
+                  description: Reason for cancellation
+                  example: "Client requested postponement"
+      responses:
+        '200':
+          description: Appointment cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/appointments/{id}/complete:
+    patch:
+      summary: Complete Appointment
+      description: Provider marks appointment as completed
+      operationId: completeAppointment
+      tags:
+        - Appointments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Appointment ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Appointment completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Only provider can complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/dashboard:
+    get:
+      summary: Admin Dashboard
+      description: Get admin dashboard with system statistics and overview
+      operationId: getAdminDashboard
+      tags:
+        - Admin
+      responses:
+        '200':
+          description: Admin dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "success"
+                  message:
+                    type: string
+                    example: "Welcome to admin panel"
+                  role:
+                    type: string
+                    example: "admin"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/users:
+    get:
+      summary: List All Users
+      description: Get list of all users (admin only)
+      operationId: listAllUsers
+      tags:
+        - Admin
+      parameters:
+        - name: role
+          in: query
+          required: false
+          description: Filter by user role
+          schema:
+            type: string
+            enum: [client, provider, admin]
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/admin/appointments:
+    get:
+      summary: List All Appointments
+      description: Get list of all appointments (admin only)
+      operationId: listAllAppointments
+      tags:
+        - Admin
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter by appointment status
+          schema:
+            type: string
+            enum: [pending, confirmed, cancelled, completed]
+      responses:
+        '200':
+          description: List of all appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Appointment'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Admin access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from /api/v1/auth/login
+
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - full_name
+        - role
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "usr_550e8400e29b41d4a716446655440000"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        full_name:
+          type: string
+          example: "John Doe"
+        role:
+          type: string
+          enum: [client, provider, admin]
+          example: "client"
+        phone:
+          type: string
+          example: "+1234567890"
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-04-20T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-04-20T10:00:00Z"
+
+    Service:
+      type: object
+      required:
+        - id
+        - provider_id
+        - name
+        - price
+        - duration_minutes
+        - is_active
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "svc_550e8400e29b41d4a716446655440000"
+        provider_id:
+          type: string
+          format: uuid
+          example: "usr_550e8400e29b41d4a716446655440001"
+        provider_name:
+          type: string
+          example: "Dr. Jane Smith"
+          nullable: true
+        provider_email:
+          type: string
+          format: email
+          example: "provider@example.com"
+          nullable: true
+        name:
+          type: string
+          example: "Dental Checkup"
+        description:
+          type: string
+          example: "Complete dental examination and consultation"
+          nullable: true
+        price:
+          type: number
+          format: double
+          example: 150.00
+        duration_minutes:
+          type: integer
+          example: 45
+        is_active:
+          type: boolean
+          example: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-04-20T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-04-20T10:00:00Z"
+
+    Appointment:
+      type: object
+      required:
+        - id
+        - client_id
+        - service_id
+        - provider_id
+        - start_time
+        - end_time
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "apt_550e8400e29b41d4a716446655440000"
+        client_id:
+          type: string
+          format: uuid
+          example: "usr_550e8400e29b41d4a716446655440002"
+        client_name:
+          type: string
+          example: "John Doe"
+        client_email:
+          type: string
+          format: email
+          example: "client@example.com"
+        service_id:
+          type: string
+          format: uuid
+          example: "svc_550e8400e29b41d4a716446655440000"
+        service_name:
+          type: string
+          example: "Dental Checkup"
+        provider_id:
+          type: string
+          format: uuid
+          example: "usr_550e8400e29b41d4a716446655440001"
+        provider_name:
+          type: string
+          example: "Dr. Jane Smith"
+        start_time:
+          type: string
+          format: date-time
+          example: "2026-04-25T14:00:00Z"
+        end_time:
+          type: string
+          format: date-time
+          example: "2026-04-25T14:45:00Z"
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, completed]
+          example: "pending"
+        notes:
+          type: string
+          example: "Please call before arrival"
+          nullable: true
+        cancellation_reason:
+          type: string
+          example: "Client requested postponement"
+          nullable: true
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-04-20T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-04-20T10:00:00Z"
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - full_name
+        - role
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: "Minimum 8 characters, must contain uppercase, lowercase, number, and special character"
+          example: "SecurePassword123!"
+        full_name:
+          type: string
+          minLength: 2
+          example: "John Doe"
+        role:
+          type: string
+          enum: [client, provider]
+          example: "client"
+        phone:
+          type: string
+          example: "+1234567890"
+          nullable: true
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          example: "SecurePassword123!"
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - user
+      properties:
+        token:
+          type: string
+          description: JWT token for authentication
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "usr_550e8400e29b41d4a716446655440000"
+            email:
+              type: string
+              example: "user@example.com"
+            full_name:
+              type: string
+              example: "John Doe"
+            role:
+              type: string
+              enum: [client, provider, admin]
+              example: "client"
+
+    TokenValidation:
+      type: object
+      required:
+        - valid
+        - user_id
+      properties:
+        valid:
+          type: boolean
+          example: true
+        user_id:
+          type: string
+          example: "usr_550e8400e29b41d4a716446655440000"
+        email:
+          type: string
+          example: "user@example.com"
+        role:
+          type: string
+          enum: [client, provider, admin]
+          example: "client"
+
+    CreateServiceRequest:
+      type: object
+      required:
+        - name
+        - price
+        - duration_minutes
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Dental Checkup"
+        description:
+          type: string
+          maxLength: 1000
+          example: "Complete dental examination and consultation"
+          nullable: true
+        price:
+          type: number
+          format: double
+          minimum: 0
+          example: 150.00
+        duration_minutes:
+          type: integer
+          minimum: 1
+          example: 45
+
+    PatchServiceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: "Dental Checkup"
+        description:
+          type: string
+          maxLength: 1000
+          example: "Updated description"
+        price:
+          type: number
+          format: double
+          minimum: 0
+          example: 175.00
+        duration_minutes:
+          type: integer
+          minimum: 1
+          example: 50
+        is_active:
+          type: boolean
+          example: true
+
+    CreateAppointmentRequest:
+      type: object
+      required:
+        - service_id
+        - start_time
+      properties:
+        service_id:
+          type: string
+          format: uuid
+          example: "svc_550e8400e29b41d4a716446655440000"
+        start_time:
+          type: string
+          format: date-time
+          description: "ISO 8601 format, must be in the future"
+          example: "2026-04-25T14:00:00Z"
+        notes:
+          type: string
+          maxLength: 500
+          example: "Please call before arrival"
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: "Validation error"
+        message:
+          type: string
+          example: "Email already exists"
+        code:
+          type: string
+          example: "VALIDATION_ERROR"
+          nullable: true
+
+tags:
+  - name: System
+    description: System health and status endpoints
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Users
+    description: User profile and information
+  - name: Services
+    description: Service management
+  - name: Appointments
+    description: Appointment booking and management
