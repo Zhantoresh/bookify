@@ -2,117 +2,85 @@ package main
 
 import (
 	"context"
-	"log"
-	"log/slog"
+	"errors"
 	"net/http"
 	"os"
-	"time"
+	"os/signal"
+	"sync"
+	"syscall"
 
-	"github.com/bookify/internal/database"
-	"github.com/bookify/internal/domain"
-	"github.com/bookify/internal/handlers"
-	"github.com/bookify/internal/middleware"
-	"github.com/bookify/internal/notification"
-	"github.com/bookify/internal/repository"
-	"github.com/bookify/internal/service"
-	"github.com/bookify/internal/usecase"
+	"github.com/bookify/internal/config"
+	"github.com/bookify/internal/repository/postgres"
+	appservice "github.com/bookify/internal/service"
+	authsvc "github.com/bookify/internal/service/auth"
+	httptransport "github.com/bookify/internal/transport/http"
+	"github.com/bookify/internal/worker"
+	"github.com/bookify/pkg/logger"
 )
 
 func main() {
+	cfg := config.Load()
+	log := logger.New(cfg.LogLevel)
 
-
-	// Logger initialization
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug, 
-	}))
-	slog.SetDefault(logger)
-
-	// Database configuration
-	dbConfig := database.Config{
-		Host:     getEnv("DB_HOST", "localhost"),
-		Port:     getEnv("DB_PORT", "5432"),
-		User:     getEnv("DB_USER", "postgres"),
-		Password: getEnv("DB_PASSWORD", "postgres"),
-		DBName:   getEnv("DB_NAME", "bookify"),
-		SSLMode:  getEnv("DB_SSLMODE", "disable"),
-	}
-
-	// Connect to database
-	db, err := database.NewDB(dbConfig)
+	db, err := postgres.Connect(cfg.DatabaseURL())
 	if err != nil {
-		logger.Error("Failed to connect to database", "error", err)
+		log.Error("database_connection_failed", "error", err)
 		os.Exit(1)
 	}
 	defer db.Close()
-	logger.Info("Database connection established")
 
-	// Initialize repositories
-	specialistRepo := repository.NewSpecialistRepository(db)
-	timeSlotRepo := repository.NewTimeSlotRepository(db)
-	bookingRepo := repository.NewBookingRepository(db)
-	userRepo := repository.NewUserRepository(db)
+	userRepo := postgres.NewUserRepository(db)
+	serviceRepo := postgres.NewServiceRepository(db)
+	appointmentRepo := postgres.NewAppointmentRepository(db)
 
-	notifier := notification.NewAsyncNotifier(notification.NewLogSender(log.Default()), 2, 32, log.Default())
-	defer func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
+	jwtService := authsvc.NewJWTService(cfg.JWTSecret, cfg.JWTExpiration)
+	authService := appservice.NewAuthService(userRepo, jwtService)
+	userService := appservice.NewUserService(userRepo)
+	serviceService := appservice.NewServiceService(serviceRepo, userRepo)
+	appointmentService := appservice.NewAppointmentService(appointmentRepo, serviceRepo, userRepo)
 
-		if err := notifier.Close(shutdownCtx); err != nil {
-			logger.Error("Failed to shutdown notifier", "error", err)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	reminderWorker := worker.NewReminderWorker(appointmentRepo, log)
+	reminderWorker.Start(ctx, &wg)
+
+	workerPool := worker.NewWorkerPool(5, 100, log)
+	workerPool.Start(ctx, &wg)
+
+	handler := httptransport.NewServer(authService, userService, serviceService, appointmentService, jwtService, workerPool, log)
+	server := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      handler,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
+	}
+
+	go func() {
+		log.Info("server_starting", "port", cfg.Port)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("server_failed", "error", err)
+			cancel()
 		}
 	}()
 
-	// Initialize usecases
-	userUsecase := usecase.NewUserUsecase(userRepo, logger)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	// Initialize services
-	specialistService := service.NewSpecialistService(specialistRepo, timeSlotRepo)
-	bookingService := service.NewBookingService(bookingRepo, timeSlotRepo, specialistRepo, userRepo, notifier, logger)
-	timeSlotService := service.NewTimeSlotService(timeSlotRepo, userRepo, notifier, logger)
+	log.Info("server_shutting_down")
+	cancel()
 
-	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userUsecase)
-	bookingHandler := handlers.NewHandler(specialistService, bookingService)
-	timeSlotHandler := handlers.NewTimeSlotHandler(timeSlotService)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownGrace)
+	defer shutdownCancel()
 
-	// Setup HTTP routes
-	mux := http.NewServeMux()
-
-	// Public routes (no auth required)
-	mux.HandleFunc("/register", authHandler.Register)
-	mux.HandleFunc("/login", authHandler.Login)
-	mux.HandleFunc("/specialists", bookingHandler.GetSpecialists)
-	mux.HandleFunc("/specialistsWithSlots/", bookingHandler.GetSpecialistByID)
-
-	// Protected routes (require auth)
-	mux.Handle("/bookings", middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.HandleBookings)))
-	mux.Handle("/bookings/", middleware.AuthMiddleware(http.HandlerFunc(bookingHandler.HandleBookingsByID)))
-
-	// Time slot management routes (specialist only - require auth and role check)
-	specialistOnly := middleware.RoleMiddleware(string(domain.RoleSpecialist))
-	mux.Handle("/time-slots", middleware.AuthMiddleware(specialistOnly(http.HandlerFunc(timeSlotHandler.HandleTimeSlots))))
-	mux.Handle("/time-slots/", middleware.AuthMiddleware(specialistOnly(http.HandlerFunc(timeSlotHandler.HandleTimeSlotsWithID))))
-
-	// Admin routes (require auth and admin role check)
-	adminOnly := middleware.RoleMiddleware(string(domain.RoleAdmin))
-	mux.Handle("/admin/dashboard", middleware.AuthMiddleware(adminOnly(http.HandlerFunc(handlers.AdminDashboard))))
-
-
-	finalHandler := middleware.LoggingMiddleware(logger)(mux)
-	
-	// Start server
-	addr := getEnv("SERVER_ADDR", ":8080")
-	logger.Info("Starting server", "addr", addr)
-
-	if err := http.ListenAndServe(addr, finalHandler); err != nil && err != http.ErrServerClosed {
-		logger.Error("Server failed", "error", err)
-		os.Exit(1)
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Error("server_shutdown_failed", "error", err)
 	}
-}
 
-func getEnv(key, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return defaultValue
+	workerPool.Shutdown()
+	wg.Wait()
+	log.Info("server_stopped")
 }
