@@ -60,6 +60,33 @@ func (r *inMemoryUserRepo) List(ctx context.Context, filter repository.UserFilte
 	return nil, nil
 }
 
+func (r *inMemoryUserRepo) CountByRole(ctx context.Context) (map[domain.Role]int, error) {
+	counts := map[domain.Role]int{}
+	for _, user := range r.byID {
+		counts[user.Role]++
+	}
+	return counts, nil
+}
+
+func (r *inMemoryUserRepo) UpdateRole(ctx context.Context, id string, role domain.Role) error {
+	user, ok := r.byID[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	user.Role = role
+	return nil
+}
+
+func (r *inMemoryUserRepo) Delete(ctx context.Context, id string) error {
+	user, ok := r.byID[id]
+	if !ok {
+		return domain.ErrNotFound
+	}
+	delete(r.byID, id)
+	delete(r.byEmail, user.Email)
+	return nil
+}
+
 type noopServiceRepo struct{}
 
 func (n *noopServiceRepo) Create(ctx context.Context, service *domain.Service) error { return nil }
@@ -72,6 +99,10 @@ func (n *noopServiceRepo) GetByID(ctx context.Context, id string) (*domain.Servi
 func (n *noopServiceRepo) Update(ctx context.Context, service *domain.Service) error { return nil }
 func (n *noopServiceRepo) HasFutureAppointments(ctx context.Context, serviceID string, now time.Time) (bool, error) {
 	return false, nil
+}
+
+func (n *noopServiceRepo) Count(ctx context.Context, onlyActive bool) (int, error) {
+	return 0, nil
 }
 
 type noopAppointmentRepo struct{}
@@ -101,16 +132,26 @@ func (n *noopAppointmentRepo) GetAppointmentsByDateRange(ctx context.Context, st
 	return nil, nil
 }
 
+func (n *noopAppointmentRepo) CountByStatus(ctx context.Context) (map[domain.AppointmentStatus]int, error) {
+	return map[domain.AppointmentStatus]int{}, nil
+}
+
 func setupTestRouter() http.Handler {
+	router, _ := setupTestApp()
+	return router
+}
+
+func setupTestApp() (http.Handler, *inMemoryUserRepo) {
 	userRepo := newInMemoryUserRepo()
 	jwt := authsvc.NewJWTService("test-secret", 24*time.Hour)
 	authService := appservice.NewAuthService(userRepo, jwt)
 	userService := appservice.NewUserService(userRepo)
+	adminService := appservice.NewAdminService(userRepo, &noopServiceRepo{}, &noopAppointmentRepo{})
 	serviceService := appservice.NewServiceService(&noopServiceRepo{}, userRepo)
 	appointmentService := appservice.NewAppointmentService(&noopAppointmentRepo{}, &noopServiceRepo{}, userRepo)
 	log := logger.New("error")
 	pool := worker.NewWorkerPool(1, 5, log)
-	return httptransport.NewServer(authService, userService, serviceService, appointmentService, jwt, pool, log)
+	return httptransport.NewServer(authService, userService, adminService, serviceService, appointmentService, jwt, pool, log), userRepo
 }
 
 func TestRegisterUser(t *testing.T) {
@@ -238,5 +279,100 @@ func TestRegisterValidationErrorFormat(t *testing.T) {
 	_ = json.Unmarshal(rec.Body.Bytes(), &response)
 	if response["error"] == nil {
 		t.Fatal("expected error envelope")
+	}
+}
+
+func TestAdminDashboardForbiddenForClient(t *testing.T) {
+	router := setupTestRouter()
+
+	registerBody := map[string]string{
+		"email":     "clientdash@example.com",
+		"password":  "ClientDash123",
+		"full_name": "Client Dash",
+		"role":      "client",
+	}
+	payload, _ := json.Marshal(registerBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBuffer(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	loginBody := map[string]string{
+		"email":    "clientdash@example.com",
+		"password": "ClientDash123",
+	}
+	payload, _ = json.Marshal(loginBody)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	var response map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &response)
+	token, _ := response["token"].(string)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/dashboard", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rec.Code)
+	}
+}
+
+func TestAdminUsersList(t *testing.T) {
+	router, userRepo := setupTestApp()
+
+	hash, err := authsvc.HashPassword("AdminPass123")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	adminUser := &domain.User{
+		ID:           "admin-1",
+		Email:        "admin@example.com",
+		PasswordHash: hash,
+		FullName:     "Admin User",
+		Role:         domain.RoleAdmin,
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+	}
+	targetUser := &domain.User{
+		ID:           "provider-1",
+		Email:        "provider@example.com",
+		PasswordHash: hash,
+		FullName:     "Provider User",
+		Role:         domain.RoleProvider,
+		CreatedAt:    time.Now().UTC(),
+		UpdatedAt:    time.Now().UTC(),
+	}
+	userRepo.byID[adminUser.ID] = adminUser
+	userRepo.byEmail[adminUser.Email] = adminUser
+	userRepo.byID[targetUser.ID] = targetUser
+	userRepo.byEmail[targetUser.Email] = targetUser
+
+	loginBody := map[string]string{
+		"email":    adminUser.Email,
+		"password": "AdminPass123",
+	}
+	payload, _ := json.Marshal(loginBody)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 login, got %d", rec.Code)
+	}
+
+	var response map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &response)
+	token, _ := response["token"].(string)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 users list, got %d", rec.Code)
 	}
 }

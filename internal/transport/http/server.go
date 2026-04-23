@@ -15,6 +15,7 @@ import (
 func NewServer(
 	authService service.AuthService,
 	userService service.UserService,
+	adminService service.AdminService,
 	serviceService service.ServiceService,
 	appointmentService service.AppointmentService,
 	jwtService *authsvc.JWTService,
@@ -24,9 +25,10 @@ func NewServer(
 	mux := nethttp.NewServeMux()
 
 	authHandler := handler.NewAuthHandler(authService)
+	adminHandler := handler.NewAdminHandler(adminService)
 	serviceHandler := handler.NewServiceHandler(serviceService)
 	appointmentHandler := handler.NewAppointmentHandler(appointmentService, workerPool, logger)
-	userHandler := handler.NewUserHandler(userService)
+	userHandler := handler.NewUserHandler(userService, adminService)
 
 	mux.HandleFunc("/health", handler.Health)
 	mux.HandleFunc("/api/v1/auth/register", authHandler.Register)
@@ -44,6 +46,9 @@ func NewServer(
 
 	mux.Handle("/api/v1/auth/validate", protected(nethttp.HandlerFunc(authHandler.Validate)))
 	mux.Handle("/api/v1/users/me", protected(nethttp.HandlerFunc(userHandler.Me)))
+	mux.Handle("/api/v1/admin/dashboard", withRole(nethttp.HandlerFunc(adminHandler.Dashboard), string(domain.RoleAdmin)))
+	mux.Handle("/api/v1/admin/users", withRole(nethttp.HandlerFunc(userHandler.AdminCollection), string(domain.RoleAdmin)))
+	mux.Handle("/api/v1/admin/users/", withRole(nethttp.HandlerFunc(userHandler.AdminByID), string(domain.RoleAdmin)))
 
 	mux.Handle("/api/v1/appointments", appointmentHandler.HandleCollection(protected, withRole))
 	mux.Handle("/api/v1/appointments/my", protected(nethttp.HandlerFunc(appointmentHandler.ListMine)))

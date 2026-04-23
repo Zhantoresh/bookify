@@ -50,6 +50,16 @@ func (a *authUserRepo) List(ctx context.Context, filter repository.UserFilter) (
 	return nil, nil
 }
 
+func (a *authUserRepo) CountByRole(ctx context.Context) (map[domain.Role]int, error) {
+	return map[domain.Role]int{}, nil
+}
+func (a *authUserRepo) UpdateRole(ctx context.Context, id string, role domain.Role) error {
+	return nil
+}
+func (a *authUserRepo) Delete(ctx context.Context, id string) error {
+	return nil
+}
+
 func TestRegisterValidation(t *testing.T) {
 	svc := appservice.NewAuthService(&authUserRepo{}, authsvc.NewJWTService("secret", time.Hour))
 	_, err := svc.Register(context.Background(), appservice.RegisterInput{
