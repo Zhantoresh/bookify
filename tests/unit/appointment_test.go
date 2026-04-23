@@ -59,6 +59,10 @@ func (f *fakeAppointmentRepo) GetAppointmentsByDateRange(ctx context.Context, st
 	return nil, nil
 }
 
+func (f *fakeAppointmentRepo) CountByStatus(ctx context.Context) (map[domain.AppointmentStatus]int, error) {
+	return map[domain.AppointmentStatus]int{}, nil
+}
+
 type fakeServiceRepo struct {
 	service *domain.Service
 }
@@ -86,6 +90,10 @@ func (f *fakeServiceRepo) HasFutureAppointments(ctx context.Context, serviceID s
 	return false, nil
 }
 
+func (f *fakeServiceRepo) Count(ctx context.Context, onlyActive bool) (int, error) {
+	return 0, nil
+}
+
 type fakeUserRepo struct{}
 
 func (f *fakeUserRepo) Create(ctx context.Context, user *domain.User) error { return nil }
@@ -97,6 +105,15 @@ func (f *fakeUserRepo) GetByEmail(ctx context.Context, email string) (*domain.Us
 }
 func (f *fakeUserRepo) List(ctx context.Context, filter repository.UserFilter) ([]domain.User, error) {
 	return nil, nil
+}
+func (f *fakeUserRepo) CountByRole(ctx context.Context) (map[domain.Role]int, error) {
+	return map[domain.Role]int{}, nil
+}
+func (f *fakeUserRepo) UpdateRole(ctx context.Context, id string, role domain.Role) error {
+	return nil
+}
+func (f *fakeUserRepo) Delete(ctx context.Context, id string) error {
+	return nil
 }
 
 func TestCreateAppointmentSuccess(t *testing.T) {

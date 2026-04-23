@@ -165,3 +165,15 @@ func (r *ServiceRepository) HasFutureAppointments(ctx context.Context, serviceID
 	}
 	return exists, nil
 }
+
+func (r *ServiceRepository) Count(ctx context.Context, onlyActive bool) (int, error) {
+	query := `SELECT COUNT(*) FROM services`
+	if onlyActive {
+		query += ` WHERE is_active = true AND deleted_at IS NULL`
+	}
+	var total int
+	if err := r.db.QueryRowContext(ctx, query).Scan(&total); err != nil {
+		return 0, err
+	}
+	return total, nil
+}

@@ -31,6 +31,19 @@ services:
       postgres:
         condition: service_healthy
 
+  seed:
+    image: postgres:16-alpine
+    container_name: booking-seed
+    volumes:
+      - ./seeds:/seeds
+    command:
+      - sh
+      - -c
+      - PGPASSWORD=${DB_PASSWORD:-postgres} psql -h postgres -U ${DB_USER:-postgres} -d ${DB_NAME:-booking} -f /seeds/seed.sql
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   api:
     build:
       context: .
@@ -52,6 +65,8 @@ services:
       postgres:
         condition: service_healthy
       migrate:
+        condition: service_completed_successfully
+      seed:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]

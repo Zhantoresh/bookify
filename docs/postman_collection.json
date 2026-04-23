@@ -737,7 +737,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"email\":\"admin@bookify.kz\",\"password\":\"admin123\"}"
+              "raw": "{\"email\":\"admin@booking.com\",\"password\":\"Admin123!\"}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/login",
@@ -809,23 +809,91 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/users?role=provider&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/admin/users?role=provider",
               "host": ["{{base_url}}"],
               "path": ["api", "v1", "admin", "users"],
               "query": [
                 {
                   "key": "role",
                   "value": "provider"
-                },
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
                 }
               ]
+            }
+          }
+        },
+        {
+          "name": "Get User By ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('token', pm.collectionVariables.get('admin_token'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/users/{{provider_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "users", "{{provider_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update User Role",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('token', pm.collectionVariables.get('admin_token'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"role\":\"provider\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/users/{{client_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "users", "{{client_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('token', pm.collectionVariables.get('admin_token'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/admin/users/{{client_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "admin", "users", "{{client_id}}"]
             }
           }
         },
@@ -845,9 +913,9 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/appointments?status=confirmed&page=1&limit=10",
+              "raw": "{{base_url}}/api/v1/appointments?status=confirmed&page=1&limit=10",
               "host": ["{{base_url}}"],
-              "path": ["api", "v1", "admin", "appointments"],
+              "path": ["api", "v1", "appointments"],
               "query": [
                 {
                   "key": "status",
@@ -881,9 +949,9 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/appointments?status=pending&page=1&limit=20",
+              "raw": "{{base_url}}/api/v1/appointments?status=pending&page=1&limit=20",
               "host": ["{{base_url}}"],
-              "path": ["api", "v1", "admin", "appointments"],
+              "path": ["api", "v1", "appointments"],
               "query": [
                 {
                   "key": "status",

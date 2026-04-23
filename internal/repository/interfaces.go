@@ -44,6 +44,9 @@ type UserRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.User, error)
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	List(ctx context.Context, filter UserFilter) ([]domain.User, error)
+	CountByRole(ctx context.Context) (map[domain.Role]int, error)
+	UpdateRole(ctx context.Context, id string, role domain.Role) error
+	Delete(ctx context.Context, id string) error
 }
 
 type ServiceRepository interface {
@@ -52,6 +55,7 @@ type ServiceRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Service, error)
 	Update(ctx context.Context, service *domain.Service) error
 	HasFutureAppointments(ctx context.Context, serviceID string, now time.Time) (bool, error)
+	Count(ctx context.Context, onlyActive bool) (int, error)
 }
 
 type AppointmentRepository interface {
@@ -63,4 +67,5 @@ type AppointmentRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Appointment, error)
 	UpdateStatus(ctx context.Context, id string, status domain.AppointmentStatus, reason string, changedAt time.Time) error
 	GetAppointmentsByDateRange(ctx context.Context, start, end time.Time) ([]domain.Appointment, error)
+	CountByStatus(ctx context.Context) (map[domain.AppointmentStatus]int, error)
 }
