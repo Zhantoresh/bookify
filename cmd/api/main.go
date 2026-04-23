@@ -36,6 +36,7 @@ func main() {
 	jwtService := authsvc.NewJWTService(cfg.JWTSecret, cfg.JWTExpiration)
 	authService := appservice.NewAuthService(userRepo, jwtService)
 	userService := appservice.NewUserService(userRepo)
+	adminService := appservice.NewAdminService(userRepo, serviceRepo, appointmentRepo)
 	serviceService := appservice.NewServiceService(serviceRepo, userRepo)
 	appointmentService := appservice.NewAppointmentService(appointmentRepo, serviceRepo, userRepo)
 
@@ -49,7 +50,7 @@ func main() {
 	workerPool := worker.NewWorkerPool(5, 100, log)
 	workerPool.Start(ctx, &wg)
 
-	handler := httptransport.NewServer(authService, userService, serviceService, appointmentService, jwtService, workerPool, log)
+	handler := httptransport.NewServer(authService, userService, adminService, serviceService, appointmentService, jwtService, workerPool, log)
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      handler,
