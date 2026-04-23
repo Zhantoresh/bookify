@@ -243,6 +243,30 @@ func (r *AppointmentRepository) GetAppointmentsByDateRange(ctx context.Context, 
 	return scanAppointments(rows)
 }
 
+func (r *AppointmentRepository) CountByStatus(ctx context.Context) (map[domain.AppointmentStatus]int, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT status, COUNT(*) FROM appointments GROUP BY status`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := map[domain.AppointmentStatus]int{
+		domain.AppointmentPending:   0,
+		domain.AppointmentConfirmed: 0,
+		domain.AppointmentCancelled: 0,
+		domain.AppointmentCompleted: 0,
+	}
+	for rows.Next() {
+		var status domain.AppointmentStatus
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, err
+		}
+		counts[status] = count
+	}
+	return counts, rows.Err()
+}
+
 func scanAppointments(rows *sql.Rows) ([]domain.Appointment, error) {
 	var items []domain.Appointment
 	for rows.Next() {

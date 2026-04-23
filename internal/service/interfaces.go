@@ -16,6 +16,15 @@ type AuthService interface {
 
 type UserService interface {
 	GetByID(ctx context.Context, id string) (*domain.User, error)
+	List(ctx context.Context, filter repository.UserFilter) ([]domain.User, error)
+}
+
+type AdminService interface {
+	Dashboard(ctx context.Context) (*Dashboard, error)
+	ListUsers(ctx context.Context, filter repository.UserFilter) ([]domain.User, error)
+	GetUser(ctx context.Context, id string) (*domain.User, error)
+	UpdateUserRole(ctx context.Context, actorID, targetUserID string, role domain.Role) (*domain.User, error)
+	DeleteUser(ctx context.Context, actorID, targetUserID string) error
 }
 
 type ServiceService interface {
@@ -37,4 +46,25 @@ type AppointmentService interface {
 	Cancel(ctx context.Context, actorID string, role domain.Role, id string, reason string) (*domain.Appointment, error)
 	Complete(ctx context.Context, actorID string, role domain.Role, id string) (*domain.Appointment, error)
 	AvailableSlots(ctx context.Context, serviceID string, date time.Time) ([]AvailableSlot, error)
+}
+
+type Dashboard struct {
+	Summary           DashboardSummary       `json:"summary"`
+	RecentUsers       []domain.User          `json:"recent_users"`
+	RecentServices    []domain.Service       `json:"recent_services"`
+	RecentAppointments []domain.Appointment  `json:"recent_appointments"`
+}
+
+type DashboardSummary struct {
+	TotalUsers               int `json:"total_users"`
+	TotalClients             int `json:"total_clients"`
+	TotalProviders           int `json:"total_providers"`
+	TotalAdmins              int `json:"total_admins"`
+	TotalServices            int `json:"total_services"`
+	ActiveServices           int `json:"active_services"`
+	TotalAppointments        int `json:"total_appointments"`
+	PendingAppointments      int `json:"pending_appointments"`
+	ConfirmedAppointments    int `json:"confirmed_appointments"`
+	CancelledAppointments    int `json:"cancelled_appointments"`
+	CompletedAppointments    int `json:"completed_appointments"`
 }
