@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/bookify/internal/config"
 	"github.com/bookify/internal/repository/postgres"
@@ -20,7 +22,12 @@ import (
 
 func main() {
 	cfg := config.Load()
-	log := logger.New(cfg.LogLevel)
+	location, err := time.LoadLocation(cfg.AppTimezone)
+	if err != nil {
+		log.Printf("invalid APP_TIMEZONE %q, falling back to UTC: %v", cfg.AppTimezone, err)
+		location = time.UTC
+	}
+	log := logger.New(cfg.LogLevel, location)
 
 	db, err := postgres.Connect(cfg.DatabaseURL())
 	if err != nil {
@@ -38,13 +45,13 @@ func main() {
 	userService := appservice.NewUserService(userRepo)
 	adminService := appservice.NewAdminService(userRepo, serviceRepo, appointmentRepo)
 	serviceService := appservice.NewServiceService(serviceRepo, userRepo)
-	appointmentService := appservice.NewAppointmentService(appointmentRepo, serviceRepo, userRepo)
+	appointmentService := appservice.NewAppointmentService(appointmentRepo, serviceRepo, userRepo, location)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var wg sync.WaitGroup
-	reminderWorker := worker.NewReminderWorker(appointmentRepo, log)
+	reminderWorker := worker.NewReminderWorker(appointmentRepo, log, location)
 	reminderWorker.Start(ctx, &wg)
 
 	workerPool := worker.NewWorkerPool(5, 100, log)
