@@ -148,8 +148,8 @@ func setupTestApp() (http.Handler, *inMemoryUserRepo) {
 	userService := appservice.NewUserService(userRepo)
 	adminService := appservice.NewAdminService(userRepo, &noopServiceRepo{}, &noopAppointmentRepo{})
 	serviceService := appservice.NewServiceService(&noopServiceRepo{}, userRepo)
-	appointmentService := appservice.NewAppointmentService(&noopAppointmentRepo{}, &noopServiceRepo{}, userRepo)
-	log := logger.New("error")
+	appointmentService := appservice.NewAppointmentService(&noopAppointmentRepo{}, &noopServiceRepo{}, userRepo, time.UTC)
+	log := logger.New("error", time.UTC)
 	pool := worker.NewWorkerPool(1, 5, log)
 	return httptransport.NewServer(authService, userService, adminService, serviceService, appointmentService, jwt, pool, log), userRepo
 }
