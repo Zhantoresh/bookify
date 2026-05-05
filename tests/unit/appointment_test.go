@@ -18,6 +18,8 @@ type fakeAppointmentRepo struct {
 	created     *domain.Appointment
 	stored      *domain.Appointment
 	updateError error
+	listItems   []domain.Appointment
+	listFilter  repository.AppointmentFilter
 }
 
 func (f *fakeAppointmentRepo) WithTx(ctx context.Context, fn func(ctx context.Context, tx *sql.Tx) error) error {
@@ -37,7 +39,8 @@ func (f *fakeAppointmentRepo) Create(ctx context.Context, tx *sql.Tx, appointmen
 }
 
 func (f *fakeAppointmentRepo) List(ctx context.Context, filter repository.AppointmentFilter) ([]domain.Appointment, repository.Pagination, error) {
-	return nil, repository.Pagination{}, nil
+	f.listFilter = filter
+	return f.listItems, repository.Pagination{}, nil
 }
 
 func (f *fakeAppointmentRepo) ListByActor(ctx context.Context, actorID string, role domain.Role, page, limit int) ([]domain.Appointment, repository.Pagination, error) {
@@ -125,7 +128,7 @@ func TestCreateAppointmentSuccess(t *testing.T) {
 			IsActive:        true,
 		},
 	}
-	svc := appservice.NewAppointmentService(repo, serviceRepo, &fakeUserRepo{})
+	svc := appservice.NewAppointmentService(repo, serviceRepo, &fakeUserRepo{}, time.UTC)
 
 	result, err := svc.Create(context.Background(), "client-1", appservice.CreateAppointmentInput{
 		ServiceID: "service-1",
@@ -149,7 +152,7 @@ func TestCreateAppointmentOverlap(t *testing.T) {
 			IsActive:        true,
 		},
 	}
-	svc := appservice.NewAppointmentService(repo, serviceRepo, &fakeUserRepo{})
+	svc := appservice.NewAppointmentService(repo, serviceRepo, &fakeUserRepo{}, time.UTC)
 
 	result, err := svc.Create(context.Background(), "client-1", appservice.CreateAppointmentInput{
 		ServiceID: "service-1",
@@ -171,7 +174,7 @@ func TestCompleteAppointmentInvalidStatus(t *testing.T) {
 			Status:     domain.AppointmentPending,
 		},
 	}
-	svc := appservice.NewAppointmentService(repo, &fakeServiceRepo{}, &fakeUserRepo{})
+	svc := appservice.NewAppointmentService(repo, &fakeServiceRepo{}, &fakeUserRepo{}, time.UTC)
 
 	result, err := svc.Complete(context.Background(), "provider-1", domain.RoleProvider, "appointment-1")
 	if result != nil {
@@ -180,5 +183,50 @@ func TestCompleteAppointmentInvalidStatus(t *testing.T) {
 	var validationErrs validator.ValidationErrors
 	if !errors.As(err, &validationErrs) {
 		t.Fatalf("expected validation errors, got %v", err)
+	}
+}
+
+func TestAvailableSlotsUseConfiguredTimezone(t *testing.T) {
+	location := time.FixedZone("UTC+5", 5*60*60)
+	repo := &fakeAppointmentRepo{
+		listItems: []domain.Appointment{
+			{
+				ServiceID: "service-1",
+				Status:    domain.AppointmentConfirmed,
+				StartTime: time.Date(2026, 5, 10, 4, 0, 0, 0, time.UTC),
+				EndTime:   time.Date(2026, 5, 10, 4, 30, 0, 0, time.UTC),
+			},
+		},
+	}
+	serviceRepo := &fakeServiceRepo{
+		service: &domain.Service{
+			ID:              "service-1",
+			DurationMinutes: 30,
+			IsActive:        true,
+		},
+	}
+	svc := appservice.NewAppointmentService(repo, serviceRepo, &fakeUserRepo{}, location)
+
+	slots, err := svc.AvailableSlots(context.Background(), "service-1", time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if repo.listFilter.FromDate == nil || repo.listFilter.ToDate == nil {
+		t.Fatal("expected date range filter to be set")
+	}
+
+	expectedFrom := time.Date(2026, 5, 10, 4, 0, 0, 0, time.UTC)
+	expectedTo := time.Date(2026, 5, 10, 12, 0, 0, 0, time.UTC)
+	if !repo.listFilter.FromDate.Equal(expectedFrom) {
+		t.Fatalf("expected from date %v, got %v", expectedFrom, *repo.listFilter.FromDate)
+	}
+	if !repo.listFilter.ToDate.Equal(expectedTo) {
+		t.Fatalf("expected to date %v, got %v", expectedTo, *repo.listFilter.ToDate)
+	}
+
+	for _, slot := range slots {
+		if slot.StartTime == "09:00" {
+			t.Fatalf("expected 09:00 local slot to be blocked, got slots %+v", slots)
+		}
 	}
 }

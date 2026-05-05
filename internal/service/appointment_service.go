@@ -25,13 +25,18 @@ type appointmentService struct {
 	appointments repository.AppointmentRepository
 	services     repository.ServiceRepository
 	users        repository.UserRepository
+	location     *time.Location
 }
 
-func NewAppointmentService(appointments repository.AppointmentRepository, services repository.ServiceRepository, users repository.UserRepository) AppointmentService {
+func NewAppointmentService(appointments repository.AppointmentRepository, services repository.ServiceRepository, users repository.UserRepository, location *time.Location) AppointmentService {
+	if location == nil {
+		location = time.UTC
+	}
 	return &appointmentService{
 		appointments: appointments,
 		services:     services,
 		users:        users,
+		location:     location,
 	}
 }
 
@@ -160,14 +165,16 @@ func (s *appointmentService) AvailableSlots(ctx context.Context, serviceID strin
 		return nil, err
 	}
 
-	location := time.UTC
-	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 9, 0, 0, 0, location)
-	dayEnd := time.Date(date.Year(), date.Month(), date.Day(), 17, 0, 0, 0, location)
+	localDate := date.In(s.location)
+	dayStart := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 9, 0, 0, 0, s.location)
+	dayEnd := time.Date(localDate.Year(), localDate.Month(), localDate.Day(), 17, 0, 0, 0, s.location)
+	fromDate := dayStart.UTC()
+	toDate := dayEnd.UTC()
 	appointments, _, err := s.appointments.List(ctx, repository.AppointmentFilter{
 		Page:     1,
 		Limit:    500,
-		FromDate: &dayStart,
-		ToDate:   &dayEnd,
+		FromDate: &fromDate,
+		ToDate:   &toDate,
 	})
 	if err != nil {
 		return nil, err
@@ -185,7 +192,9 @@ func (s *appointmentService) AvailableSlots(ctx context.Context, serviceID strin
 			if appointment.Status != domain.AppointmentPending && appointment.Status != domain.AppointmentConfirmed {
 				continue
 			}
-			if current.Before(appointment.EndTime) && next.After(appointment.StartTime) {
+			appointmentStart := appointment.StartTime.In(s.location)
+			appointmentEnd := appointment.EndTime.In(s.location)
+			if current.Before(appointmentEnd) && next.After(appointmentStart) {
 				available = false
 				break
 			}

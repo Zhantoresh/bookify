@@ -14,13 +14,18 @@ type ReminderWorker struct {
 	appointmentRepo repository.AppointmentRepository
 	logger          *slog.Logger
 	interval        time.Duration
+	location        *time.Location
 }
 
-func NewReminderWorker(repo repository.AppointmentRepository, logger *slog.Logger) *ReminderWorker {
+func NewReminderWorker(repo repository.AppointmentRepository, logger *slog.Logger, location *time.Location) *ReminderWorker {
+	if location == nil {
+		location = time.UTC
+	}
 	return &ReminderWorker{
 		appointmentRepo: repo,
 		logger:          logger,
 		interval:        time.Hour,
+		location:        location,
 	}
 }
 
@@ -44,10 +49,10 @@ func (w *ReminderWorker) Start(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 func (w *ReminderWorker) checkAndSendReminders(ctx context.Context) {
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1)
-	start := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 0, 0, 0, 0, time.UTC)
-	end := start.Add(24 * time.Hour)
-	appointments, err := w.appointmentRepo.GetAppointmentsByDateRange(ctx, start, end)
+	tomorrow := time.Now().In(w.location).AddDate(0, 0, 1)
+	startLocal := time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), 0, 0, 0, 0, w.location)
+	endLocal := startLocal.Add(24 * time.Hour)
+	appointments, err := w.appointmentRepo.GetAppointmentsByDateRange(ctx, startLocal.UTC(), endLocal.UTC())
 	if err != nil {
 		w.logger.Error("reminder_fetch_failed", "error", err)
 		return
