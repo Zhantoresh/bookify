@@ -23,9 +23,10 @@ type Config struct {
 	JWTSecret     string
 	JWTExpiration time.Duration
 
-	AppName  string
-	AppEnv   string
-	LogLevel string
+	AppName     string
+	AppEnv      string
+	LogLevel    string
+	AppTimezone string
 }
 
 func Load() *Config {
@@ -46,6 +47,7 @@ func Load() *Config {
 		AppName:       getEnv("APP_NAME", "BookingSystem"),
 		AppEnv:        getEnv("APP_ENV", "development"),
 		LogLevel:      getEnv("LOG_LEVEL", "info"),
+		AppTimezone:   getEnv("APP_TIMEZONE", "UTC"),
 	}
 }
 
