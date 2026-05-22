@@ -28,7 +28,7 @@ export default function AdminDashboard() {
       </div>
 
       {}
-      <h2 style={styles.h2}>Пользователи</h2>
+      <h2 style={styles.h2}>Users</h2>
       <div style={styles.grid}>
         <StatCard label="Total"        value={s.total_users}    color="#6366f1" />
         <StatCard label="Clients"     value={s.total_clients}  color="#0ea5e9" />
