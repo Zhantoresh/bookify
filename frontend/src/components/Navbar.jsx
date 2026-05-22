@@ -18,24 +18,24 @@ export default function Navbar() {
         <div style={styles.links}>
           {user ? (
             <>
-              <Link to="/services" style={styles.link}>Услуги</Link>
+              <Link to="/services" style={styles.link}>Services</Link>
                 {user.role === 'provider' && (
-              <Link to="/my-services" style={styles.link}>Мои услуги</Link>
+              <Link to="/my-services" style={styles.link}>My services</Link>
             )}
                 {user.role === 'admin' && (
             <>
-              <Link to="/admin" style={styles.link}>Дашборд</Link>
-              <Link to="/admin/users" style={styles.link}>Пользователи</Link>
+              <Link to="/admin" style={styles.link}>Dashboard</Link>
+              <Link to="/admin/users" style={styles.link}>Users</Link>
             </>
             )}
-              <Link to="/my-appointments" style={styles.link}>Мои записи</Link>
+              <Link to="/my-appointments" style={styles.link}>My bookings</Link>
               <span style={styles.email}>{user.full_name}</span>
-              <button onClick={onLogout} style={styles.btn}>Выйти</button>
+              <button onClick={onLogout} style={styles.btn}>Logout</button>
             </>
           ) : (
             <>
-              <Link to="/login"    style={styles.link}>Войти</Link>
-              <Link to="/register" style={styles.link}>Регистрация</Link>
+              <Link to="/login"    style={styles.link}>Login</Link>
+              <Link to="/register" style={styles.link}>Registration</Link>
             </>
           )}
         </div>
