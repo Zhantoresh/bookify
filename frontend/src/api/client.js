@@ -48,7 +48,7 @@ async function request(method, path, body = null, auth = true) {
 
   if (!res.ok) {
     
-    const message = data?.error || data?.message || 'Что-то пошло не так'
+    const message = data?.error || data?.message || 'Something went wrong'
     throw new Error(message)
   }
 

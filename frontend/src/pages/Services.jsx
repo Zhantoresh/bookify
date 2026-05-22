@@ -36,26 +36,26 @@ export default function Services() {
 
   return (
     <div>
-      <h1 style={styles.h1}>Услуги</h1>
+      <h1 style={styles.h1}>Services</h1>
 
       {/* Поиск */}
       <form onSubmit={onSearch} style={styles.searchRow}>
         <input
           style={styles.searchInput}
-          placeholder="Поиск по названию..."
+          placeholder="Search by name..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
-        <button style={styles.searchBtn} type="submit">Найти</button>
+        <button style={styles.searchBtn} type="submit">Search</button>
       </form>
 
-      {loading && <p style={styles.muted}>Загрузка...</p>}
+      {loading && <p style={styles.muted}>Downloading...</p>}
 
       {!loading && services.length === 0 && (
-        <p style={styles.muted}>Услуги не найдены.</p>
+        <p style={styles.muted}>Services not found.</p>
       )}
 
-      {/* Сетка карточек */}
+      {}
       <div style={styles.grid}>
         {services.map(svc => (
           <div key={svc.id} style={styles.card}>
@@ -67,21 +67,21 @@ export default function Services() {
               <div style={styles.cardDesc}>{svc.description}</div>
             )}
             <div style={styles.cardMeta}>
-              ⏱ {svc.duration_minutes} мин &nbsp;·&nbsp; 👤 {svc.provider_name || 'Провайдер'}
+              ⏱ {svc.duration_minutes} мин &nbsp;·&nbsp; 👤 {svc.provider_name || 'Provider'}
             </div>
             {user?.role === 'client' && (
               <button
                 style={styles.bookBtn}
                 onClick={() => setSelectedService(svc)}
               >
-                Записаться
+                Book
               </button>
             )}
           </div>
         ))}
       </div>
 
-      {/* Пагинация */}
+      {}
       {pagination.pages > 1 && (
         <div style={styles.pagination}>
           {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(p => (
@@ -99,7 +99,7 @@ export default function Services() {
         </div>
       )}
 
-      {/* Модалка бронирования */}
+      {}
       {selectedService && (
         <BookModal
           service={selectedService}

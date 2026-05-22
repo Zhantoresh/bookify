@@ -5,9 +5,9 @@ import { useAuth } from '../context/AuthContext'
 const ROLES = ['client', 'provider', 'admin']
 
 const ROLE_LABELS = {
-  admin:    { label: 'Админ',     bg: '#fef3c7', color: '#92400e' },
-  provider: { label: 'Провайдер', bg: '#d1fae5', color: '#065f46' },
-  client:   { label: 'Клиент',    bg: '#dbeafe', color: '#1e40af' },
+  admin:    { label: 'Admin',     bg: '#fef3c7', color: '#92400e' },
+  provider: { label: 'Provider', bg: '#d1fae5', color: '#065f46' },
+  client:   { label: 'Client',    bg: '#dbeafe', color: '#1e40af' },
 }
 
 export default function AdminUsers() {
@@ -35,7 +35,7 @@ export default function AdminUsers() {
     setSuccess('')
     try {
       await updateUserRole(id, newRole)
-      setSuccess('Роль обновлена')
+      setSuccess('Role is updated')
       fetchUsers()
     } catch (err) {
       setError(err.message)
@@ -45,13 +45,13 @@ export default function AdminUsers() {
   }
 
   async function onDelete(id, name) {
-    if (!window.confirm(`Удалить пользователя "${name}"? Это действие необратимо.`)) return
+    if (!window.confirm(`Удалить пользователя "${name}"? This action is irreversible.`)) return
     setActionId(id)
     setError('')
     setSuccess('')
     try {
       await deleteUser(id)
-      setSuccess(`Пользователь "${name}" удалён`)
+      setSuccess(`User "${name}" is deleted`)
       fetchUsers()
     } catch (err) {
       setError(err.message)
@@ -63,19 +63,19 @@ export default function AdminUsers() {
   return (
     <div>
       <div style={styles.header}>
-        <h1 style={styles.h1}>Пользователи</h1>
-        <span style={styles.count}>{users.length} чел.</span>
+        <h1 style={styles.h1}>Users</h1>
+        <span style={styles.count}>{users.length} people.</span>
       </div>
 
       {success && <div style={styles.successBox}>{success}</div>}
       {error   && <div style={styles.errorBox}>{error}</div>}
 
-      {/* Фильтр по роли */}
+      {}
       <div style={styles.filters}>
         <button
           style={{ ...styles.filterBtn, ...(filterRole === '' ? styles.filterActive : {}) }}
           onClick={() => setFilterRole('')}
-        >Все</button>
+        >All</button>
         {ROLES.map(r => (
           <button
             key={r}
@@ -87,13 +87,13 @@ export default function AdminUsers() {
         ))}
       </div>
 
-      {loading && <p style={styles.muted}>Загрузка...</p>}
+      {loading && <p style={styles.muted}>Downloading...</p>}
 
       {!loading && users.length === 0 && (
-        <p style={styles.muted}>Пользователи не найдены.</p>
+        <p style={styles.muted}>Users not found.</p>
       )}
 
-      {/* Список */}
+      {}
       <div style={styles.list}>
         {users.map(u => {
           const rl = ROLE_LABELS[u.role] || ROLE_LABELS.client
@@ -102,7 +102,7 @@ export default function AdminUsers() {
 
           return (
             <div key={u.id} style={styles.card}>
-              {/* Левая часть */}
+              {}
               <div style={styles.cardLeft}>
                 <div style={styles.avatar}>
                   {u.full_name?.[0]?.toUpperCase() || '?'}
@@ -110,21 +110,21 @@ export default function AdminUsers() {
                 <div>
                   <div style={styles.name}>
                     {u.full_name}
-                    {isMe && <span style={styles.meBadge}>это вы</span>}
+                    {isMe && <span style={styles.meBadge}>It is you</span>}
                   </div>
                   <div style={styles.email}>{u.email}</div>
                   {u.phone && <div style={styles.phone}>{u.phone}</div>}
                 </div>
               </div>
 
-              {/* Правая часть */}
+              {}
               <div style={styles.cardRight}>
-                {/* Текущая роль */}
+                {}
                 <span style={{ ...styles.roleBadge, background: rl.bg, color: rl.color }}>
                   {rl.label}
                 </span>
 
-                {/* Смена роли — не для себя */}
+                {}
                 {!isMe && (
                   <select
                     style={styles.select}
@@ -138,14 +138,14 @@ export default function AdminUsers() {
                   </select>
                 )}
 
-                {/* Удалить — не для себя */}
+                {}
                 {!isMe && (
                   <button
                     style={styles.deleteBtn}
                     onClick={() => onDelete(u.id, u.full_name)}
                     disabled={busy}
                   >
-                    {busy ? '...' : 'Удалить'}
+                    {busy ? '...' : 'Delete'}
                   </button>
                 )}
               </div>

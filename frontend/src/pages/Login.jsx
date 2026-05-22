@@ -33,7 +33,7 @@ export default function Login() {
   return (
     <div style={styles.wrap}>
       <div style={styles.card}>
-        <h2 style={styles.title}>Вход в Bookify</h2>
+        <h2 style={styles.title}>Login to Bookify</h2>
 
         {error && <div style={styles.error}>{error}</div>}
 
@@ -49,7 +49,7 @@ export default function Login() {
             required
           />
 
-          <label style={styles.label}>Пароль</label>
+          <label style={styles.label}>Password</label>
           <input
             style={styles.input}
             type="password"
@@ -61,13 +61,13 @@ export default function Login() {
           />
 
           <button style={styles.btn} type="submit" disabled={loading}>
-            {loading ? 'Загрузка...' : 'Войти'}
+            {loading ? 'Downloading...' : 'Войти'}
           </button>
         </form>
 
         <p style={styles.footer}>
-          Нет аккаунта?{' '}
-          <Link to="/register" style={styles.linkText}>Зарегистрироваться</Link>
+          Do not have account?{' '}
+          <Link to="/register" style={styles.linkText}>Register</Link>
         </p>
       </div>
     </div>

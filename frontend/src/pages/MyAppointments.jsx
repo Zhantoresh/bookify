@@ -3,17 +3,17 @@ import { getMyAppointments, cancelAppointment, confirmAppointment, completeAppoi
 import { useAuth } from '../context/AuthContext'
 
 const STATUS_LABELS = {
-  pending:   { label: 'Ожидает',     color: '#d97706', bg: '#fffbeb' },
-  confirmed: { label: 'Подтверждён', color: '#059669', bg: '#ecfdf5' },
-  cancelled: { label: 'Отменён',     color: '#dc2626', bg: '#fef2f2' },
-  completed: { label: 'Завершён',    color: '#6b7280', bg: '#f9fafb' },
+  pending:   { label: 'Waiting',     color: '#d97706', bg: '#fffbeb' },
+  confirmed: { label: 'Approved', color: '#059669', bg: '#ecfdf5' },
+  cancelled: { label: 'Cancelled',     color: '#dc2626', bg: '#fef2f2' },
+  completed: { label: 'Finished',    color: '#6b7280', bg: '#f9fafb' },
 }
 
 export default function MyAppointments() {
   const { user } = useAuth()
   const [appointments, setAppointments] = useState([])
   const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(null) // id записи
+  const [actionLoading, setActionLoading] = useState(null) 
 
   function fetchAll() {
     setLoading(true)
@@ -38,7 +38,7 @@ export default function MyAppointments() {
   }
 
   async function handleCancel(id) {
-    const reason = prompt('Причина отмены (необязательно):') ?? ''
+    const reason = prompt('Reason of cancellation (Not necessary):') ?? ''
     setActionLoading(id)
     try {
       await cancelAppointment(id, reason)
@@ -50,14 +50,14 @@ export default function MyAppointments() {
     }
   }
 
-  if (loading) return <p style={styles.muted}>Загрузка...</p>
+  if (loading) return <p style={styles.muted}>Downloading...</p>
 
   return (
     <div>
-      <h1 style={styles.h1}>Мои записи</h1>
+      <h1 style={styles.h1}>My appointmens</h1>
 
       {appointments.length === 0 && (
-        <p style={styles.muted}>У вас пока нет записей.</p>
+        <p style={styles.muted}>You do not have appointments yet.</p>
       )}
 
       {appointments.map(appt => {
@@ -85,8 +85,8 @@ export default function MyAppointments() {
             </div>
             <div style={styles.info}>
               {user?.role === 'client'
-                ? <span>👤 Провайдер: {appt.provider_name}</span>
-                : <span>👤 Клиент: {appt.client_name} ({appt.client_email})</span>
+                ? <span>👤 Provider: {appt.provider_name}</span>
+                : <span>👤 Client: {appt.client_name} ({appt.client_email})</span>
               }
             </div>
             {appt.notes && (
@@ -94,20 +94,20 @@ export default function MyAppointments() {
             )}
             {appt.cancellation_reason && (
               <div style={{ ...styles.notes, color: '#dc2626' }}>
-                Причина отмены: {appt.cancellation_reason}
+                Reason of cancellation: {appt.cancellation_reason}
               </div>
             )}
 
             {}
             <div style={styles.actions}>
-              {/* Клиент: может отменить pending */}
+              {}
               {user?.role === 'client' && appt.status === 'pending' && (
                 <button
                   style={styles.cancelBtn}
                   onClick={() => handleCancel(appt.id)}
                   disabled={busy}
                 >
-                  {busy ? '...' : 'Отменить'}
+                  {busy ? '...' : 'Cancel'}
                 </button>
               )}
 
@@ -118,11 +118,11 @@ export default function MyAppointments() {
                   onClick={() => handleAction(confirmAppointment, appt.id)}
                   disabled={busy}
                 >
-                  {busy ? '...' : 'Подтвердить'}
+                  {busy ? '...' : 'Approve'}
                 </button>
               )}
 
-              {/* Провайдер: завершить confirmed */}
+              {}
               {user?.role === 'provider' && appt.status === 'confirmed' && (
                 <>
                   <button
@@ -130,14 +130,14 @@ export default function MyAppointments() {
                     onClick={() => handleAction(completeAppointment, appt.id)}
                     disabled={busy}
                   >
-                    {busy ? '...' : 'Завершить'}
+                    {busy ? '...' : 'Finish'}
                   </button>
                   <button
                     style={styles.cancelBtn}
                     onClick={() => handleCancel(appt.id)}
                     disabled={busy}
                   >
-                    {busy ? '...' : 'Отменить'}
+                    {busy ? '...' : 'Cancel'}
                   </button>
                 </>
               )}

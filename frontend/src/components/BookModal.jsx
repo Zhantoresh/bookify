@@ -47,15 +47,15 @@ export default function BookModal({ service, onClose, onSuccess }) {
     <div style={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={styles.modal}>
         <div style={styles.header}>
-          <h3 style={styles.title}>Запись на: {service.name}</h3>
+          <h3 style={styles.title}>Booking to: {service.name}</h3>
           <button style={styles.close} onClick={onClose}>✕</button>
         </div>
 
         <div style={styles.meta}>
-          ⏱ {service.duration_minutes} мин &nbsp;·&nbsp; {service.price} ₸
+          ⏱ {service.duration_minutes} min &nbsp;·&nbsp; {service.price} ₸
         </div>
 
-        <label style={styles.label}>Выберите дату</label>
+        <label style={styles.label}>Choose a date</label>
         <input
           style={styles.input}
           type="date"
@@ -64,12 +64,12 @@ export default function BookModal({ service, onClose, onSuccess }) {
           onChange={e => { setDate(e.target.value); setSelectedSlot(null) }}
         />
 
-        <label style={styles.label}>Доступные слоты</label>
+        <label style={styles.label}>Available slots</label>
 
-        {slotsLoading && <p style={styles.muted}>Загрузка слотов...</p>}
+        {slotsLoading && <p style={styles.muted}>Downloading slots...</p>}
 
         {!slotsLoading && slots.length === 0 && (
-          <p style={styles.muted}>На эту дату нет свободных слотов.</p>
+          <p style={styles.muted}>There are no available slots for this date..</p>
         )}
 
         <div style={styles.slotsGrid}>
@@ -88,12 +88,12 @@ export default function BookModal({ service, onClose, onSuccess }) {
           })}
         </div>
 
-        <label style={styles.label}>Заметки (необязательно)</label>
+        <label style={styles.label}>Notes (Not necessary)</label>
         <textarea
           style={styles.textarea}
           value={notes}
           onChange={e => setNotes(e.target.value)}
-          placeholder="Любые пожелания..."
+          placeholder="Any wish..."
           rows={2}
         />
 
@@ -104,7 +104,7 @@ export default function BookModal({ service, onClose, onSuccess }) {
           onClick={onBook}
           disabled={!selectedSlot || loading}
         >
-          {loading ? 'Бронируем...' : 'Подтвердить запись'}
+          {loading ? 'Booking...' : 'Approve booking'}
         </button>
       </div>
     </div>

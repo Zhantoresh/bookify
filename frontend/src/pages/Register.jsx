@@ -26,7 +26,7 @@ export default function Register() {
     setError('')
     setLoading(true)
     try {
-      // Регистрируемся, потом сразу логинимся
+      
       await register(form)
       const data = await login({ email: form.email, password: form.password })
       handleLogin(data.user)
@@ -41,18 +41,18 @@ export default function Register() {
   return (
     <div style={styles.wrap}>
       <div style={styles.card}>
-        <h2 style={styles.title}>Регистрация</h2>
+        <h2 style={styles.title}>Registration</h2>
 
         {error && <div style={styles.error}>{error}</div>}
 
         <form onSubmit={onSubmit}>
-          <label style={styles.label}>Имя</label>
+          <label style={styles.label}>Name</label>
           <input
             style={styles.input}
             name="full_name"
             value={form.full_name}
             onChange={onChange}
-            placeholder="Иван Иванов"
+            placeholder="Ivan Ivanov"
             required
           />
 
@@ -67,7 +67,7 @@ export default function Register() {
             required
           />
 
-          <label style={styles.label}>Телефон (необязательно)</label>
+          <label style={styles.label}>Phone number (Not necessary)</label>
           <input
             style={styles.input}
             name="phone"
@@ -76,36 +76,36 @@ export default function Register() {
             placeholder="+7 777 000 0000"
           />
 
-          <label style={styles.label}>Пароль</label>
+          <label style={styles.label}>Password</label>
           <input
             style={styles.input}
             type="password"
             name="password"
             value={form.password}
             onChange={onChange}
-            placeholder="Минимум 8 символов, буквы и цифры"
+            placeholder="Minimal 8 symbols, letters and digits"
             required
           />
 
-          <label style={styles.label}>Я регистрируюсь как</label>
+          <label style={styles.label}>I register as</label>
           <select
             style={styles.input}
             name="role"
             value={form.role}
             onChange={onChange}
           >
-            <option value="client">Клиент — хочу записываться на услуги</option>
-            <option value="provider">Провайдер — предоставляю услуги</option>
+            <option value="client">Client — I want to sign up for services</option>
+            <option value="provider">Provider — I provide services</option>
           </select>
 
           <button style={styles.btn} type="submit" disabled={loading}>
-            {loading ? 'Загрузка...' : 'Зарегистрироваться'}
+            {loading ? 'Downloading...' : 'Register'}
           </button>
         </form>
 
         <p style={styles.footer}>
-          Уже есть аккаунт?{' '}
-          <Link to="/login" style={styles.linkText}>Войти</Link>
+          Already have account?{' '}
+          <Link to="/login" style={styles.linkText}>Login</Link>
         </p>
       </div>
     </div>

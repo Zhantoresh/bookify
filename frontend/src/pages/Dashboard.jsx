@@ -4,10 +4,10 @@ import { useAuth } from '../context/AuthContext'
 import { getMyAppointments } from '../api/client'
 
 const STATUS_LABELS = {
-  pending:   { label: 'Ожидает',   color: '#d97706', bg: '#fffbeb' },
-  confirmed: { label: 'Подтверждён', color: '#059669', bg: '#ecfdf5' },
-  cancelled: { label: 'Отменён',   color: '#dc2626', bg: '#fef2f2' },
-  completed: { label: 'Завершён',  color: '#6b7280', bg: '#f9fafb' },
+  pending:   { label: 'Waiting',   color: '#d97706', bg: '#fffbeb' },
+  confirmed: { label: 'Approved', color: '#059669', bg: '#ecfdf5' },
+  cancelled: { label: 'Cancelled',   color: '#dc2626', bg: '#fef2f2' },
+  completed: { label: 'Finished',  color: '#6b7280', bg: '#f9fafb' },
 }
 
 export default function Dashboard() {
@@ -22,50 +22,50 @@ export default function Dashboard() {
       .finally(() => setLoading(false))
   }, [])
 
-  const roleLabel = user?.role === 'provider' ? 'Провайдер' : user?.role === 'admin' ? 'Администратор' : 'Клиент'
+  const roleLabel = user?.role === 'provider' ? 'Provider' : user?.role === 'admin' ? 'Admin' : 'Client'
 
   return (
     <div>
-      {/* Приветствие */}
+      {}
       <div style={styles.welcome}>
         <div>
-          <h1 style={styles.h1}>Привет, {user?.full_name} 👋</h1>
+          <h1 style={styles.h1}>Hello, {user?.full_name} 👋</h1>
           <span style={styles.roleBadge}>{roleLabel}</span>
         </div>
       </div>
 
-      {/* Быстрые действия */}
+      {}
       <div style={styles.grid}>
         <Link to="/services" style={styles.actionCard}>
           <div style={styles.actionIcon}>🔍</div>
-          <div style={styles.actionTitle}>Найти услугу</div>
-          <div style={styles.actionSub}>Просмотр всех доступных услуг</div>
+          <div style={styles.actionTitle}>Find a service</div>
+          <div style={styles.actionSub}>View all available services</div>
         </Link>
 
         <Link to="/my-appointments" style={styles.actionCard}>
           <div style={styles.actionIcon}>📅</div>
-          <div style={styles.actionTitle}>Мои записи</div>
-          <div style={styles.actionSub}>Все ваши бронирования</div>
+          <div style={styles.actionTitle}>My appoinments</div>
+          <div style={styles.actionSub}>All my bookings</div>
         </Link>
 
         {user?.role === 'provider' && (
           <Link to="/services" style={styles.actionCard}>
             <div style={styles.actionIcon}>➕</div>
-            <div style={styles.actionTitle}>Мои услуги</div>
-            <div style={styles.actionSub}>Управление услугами</div>
+            <div style={styles.actionTitle}>My services</div>
+            <div style={styles.actionSub}>Service management</div>
           </Link>
         )}
       </div>
 
-      {/* Последние записи */}
-      <h2 style={styles.h2}>Последние записи</h2>
+      {}
+      <h2 style={styles.h2}>Last bookings</h2>
 
-      {loading && <p style={styles.muted}>Загрузка...</p>}
+      {loading && <p style={styles.muted}>Downloading...</p>}
 
       {!loading && appointments.length === 0 && (
         <div style={styles.empty}>
-          <p>У вас пока нет записей.</p>
-          <Link to="/services" style={styles.link}>Найти услугу →</Link>
+          <p>You do not have bookings yet.</p>
+          <Link to="/services" style={styles.link}>Find service →</Link>
         </div>
       )}
 
@@ -79,7 +79,7 @@ export default function Dashboard() {
             <div style={styles.apptLeft}>
               <div style={styles.apptService}>{appt.service_name}</div>
               <div style={styles.apptMeta}>
-                {user?.role === 'client' ? `Провайдер: ${appt.provider_name}` : `Клиент: ${appt.client_name}`}
+                {user?.role === 'client' ? `Provider: ${appt.provider_name}` : `Client: ${appt.client_name}`}
               </div>
               <div style={styles.apptMeta}>{date}</div>
             </div>
@@ -91,7 +91,7 @@ export default function Dashboard() {
       })}
 
       {!loading && appointments.length > 0 && (
-        <Link to="/my-appointments" style={styles.link}>Все записи →</Link>
+        <Link to="/my-appointments" style={styles.link}>All bookings →</Link>
       )}
     </div>
   )

@@ -43,26 +43,26 @@ export default function MyServices() {
         price: parseFloat(form.price),
         duration_minutes: parseInt(form.duration_minutes),
       })
-      setSuccess(`Услуга "${form.name}" создана!`)
+      setSuccess(`Service "${form.name}" is created!`)
       setForm({ name: '', description: '', price: '', duration_minutes: '' })
       setShowForm(false)
       fetchServices()
     } catch (err) {
-      setError(err.message ?? 'Ошибка при создании')
+      setError(err.message ?? 'Error when creating')
     } finally {
       setActionLoading(false)
     }
   }
 
   async function onDelete(id, name) {
-    if (!window.confirm(`Удалить услугу "${name}"?`)) return
+    if (!window.confirm(`Delete service "${name}"?`)) return
     setDeleteId(id)
     try {
       await deleteService(id)
-      setSuccess(`Услуга "${name}" удалена`)
+      setSuccess(`Service "${name}" is deleted`)
       fetchServices()
     } catch (err) {
-      setError(err.message ?? 'Ошибка при удалении')
+      setError(err.message ?? 'Error when deleting')
     } finally {
       setDeleteId(null)
     }
@@ -71,46 +71,46 @@ export default function MyServices() {
   return (
     <div>
       <div style={styles.header}>
-        <h1 style={styles.h1}>Мои услуги</h1>
+        <h1 style={styles.h1}>My services</h1>
         <button
           style={styles.createBtn}
           onClick={() => { setShowForm(!showForm); setError(''); setSuccess('') }}
         >
-          {showForm ? '✕ Отмена' : '+ Создать услугу'}
+          {showForm ? '✕ Cancel' : '+ Create service'}
         </button>
       </div>
 
       {success && <div style={styles.successBox}>{success}</div>}
       {error   && <div style={styles.errorBox}>{error}</div>}
 
-      {/* Форма создания */}
+      {}
       {showForm && (
         <div style={styles.formCard}>
-          <h3 style={styles.formTitle}>Новая услуга</h3>
+          <h3 style={styles.formTitle}>New service</h3>
           <form onSubmit={onCreateSubmit}>
-            <label style={styles.label}>Название *</label>
+            <label style={styles.label}>Name *</label>
             <input
               style={styles.input}
               name="name"
               value={form.name}
               onChange={onChange}
-              placeholder="Например: Стрижка, Консультация..."
+              placeholder="For instance: Hair cutting, Consultation..."
               required
             />
 
-            <label style={styles.label}>Описание</label>
+            <label style={styles.label}>Description</label>
             <textarea
               style={{ ...styles.input, resize: 'vertical' }}
               name="description"
               value={form.description}
               onChange={onChange}
-              placeholder="Краткое описание услуги"
+              placeholder="A brief description of service"
               rows={2}
             />
 
             <div style={styles.row}>
               <div style={{ flex: 1 }}>
-                <label style={styles.label}>Цена (₸) *</label>
+                <label style={styles.label}>Price (₸) *</label>
                 <input
                   style={styles.input}
                   name="price"
@@ -124,7 +124,7 @@ export default function MyServices() {
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={styles.label}>Длительность (мин) *</label>
+                <label style={styles.label}>Duration (min) *</label>
                 <input
                   style={styles.input}
                   name="duration_minutes"
@@ -140,20 +140,20 @@ export default function MyServices() {
             </div>
 
             <button style={styles.submitBtn} type="submit" disabled={actionLoading}>
-              {actionLoading ? 'Создаём...' : 'Создать услугу'}
+              {actionLoading ? 'Creating...' : 'Create service'}
             </button>
           </form>
         </div>
       )}
 
-      {/* Список услуг */}
-      {loading && <p style={styles.muted}>Загрузка...</p>}
+      {}
+      {loading && <p style={styles.muted}>Downloading...</p>}
 
       {!loading && services.length === 0 && !showForm && (
         <div style={styles.empty}>
-          <p>У вас пока нет услуг.</p>
+          <p>You do not have services yet.</p>
           <button style={styles.createBtn} onClick={() => setShowForm(true)}>
-            + Создать первую услугу
+            + Create first service
           </button>
         </div>
       )}
@@ -167,10 +167,10 @@ export default function MyServices() {
                 <div style={styles.cardDesc}>{svc.description}</div>
               )}
               <div style={styles.cardMeta}>
-                ⏱ {svc.duration_minutes} мин &nbsp;·&nbsp; {svc.price} ₸
+                ⏱ {svc.duration_minutes} min &nbsp;·&nbsp; {svc.price} ₸
                 &nbsp;·&nbsp;
                 <span style={{ color: svc.is_active ? '#059669' : '#dc2626' }}>
-                  {svc.is_active ? '● Активна' : '● Неактивна'}
+                  {svc.is_active ? '● Active' : '● Inactive'}
                 </span>
               </div>
             </div>
@@ -179,7 +179,7 @@ export default function MyServices() {
               onClick={() => onDelete(svc.id, svc.name)}
               disabled={deleteId === svc.id}
             >
-              {deleteId === svc.id ? '...' : 'Удалить'}
+              {deleteId === svc.id ? '...' : 'Delete'}
             </button>
           </div>
         ))}
