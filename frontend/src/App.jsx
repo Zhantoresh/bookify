@@ -76,7 +76,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
           {/* 404 */}
-          <Route path="*" element={<h2 style={{ textAlign: 'center', marginTop: 60 }}>Страница не найдена</h2>} />
+          <Route path="*" element={<h2 style={{ textAlign: 'center', marginTop: 60 }}>Page not found</h2>} />
         </Routes>
       </div>
     </>
