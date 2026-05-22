@@ -36,7 +36,7 @@ export default function AdminDashboard() {
         <StatCard label="Admins"      value={s.total_admins}   color="#f59e0b" />
       </div>
 
-      {/* Услуги */}
+      {}
       <h2 style={styles.h2}>Services</h2>
       <div style={styles.grid}>
         <StatCard label="Total services"   value={s.total_services}  color="#8b5cf6" />

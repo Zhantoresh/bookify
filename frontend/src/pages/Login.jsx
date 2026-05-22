@@ -61,7 +61,7 @@ export default function Login() {
           />
 
           <button style={styles.btn} type="submit" disabled={loading}>
-            {loading ? 'Downloading...' : 'Войти'}
+            {loading ? 'Downloading...' : 'Login'}
           </button>
         </form>
 
