@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getAdminUsers, updateUserRole, deleteUser } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
-const ROLES = ['client', 'provider', 'admin']
+const ROLES = ['client', 'provider']
 
 const ROLE_LABELS = {
   admin:    { label: 'Admin',     bg: '#fef3c7', color: '#92400e' },
@@ -45,7 +45,7 @@ export default function AdminUsers() {
   }
 
   async function onDelete(id, name) {
-    if (!window.confirm(`Удалить пользователя "${name}"? This action is irreversible.`)) return
+    if (!window.confirm(`Delete user "${name}"? This action is irreversible.`)) return
     setActionId(id)
     setError('')
     setSuccess('')

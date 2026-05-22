@@ -90,8 +90,11 @@ func (s *adminService) UpdateUserRole(ctx context.Context, actorID, targetUserID
 	if actorID == targetUserID {
 		return nil, validator.ValidationErrors{{Field: "user_id", Error: "admin cannot change own role"}}
 	}
-	if role != domain.RoleAdmin && role != domain.RoleClient && role != domain.RoleProvider {
-		return nil, validator.ValidationErrors{{Field: "role", Error: "must be one of: admin, client, provider"}}
+	if role == domain.RoleAdmin {
+		return nil, validator.ValidationErrors{{Field: "role", Error: "cannot assign admin role"}}
+	}
+	if role != domain.RoleClient && role != domain.RoleProvider {
+		return nil, validator.ValidationErrors{{Field: "role", Error: "must be one of: client, provider"}}
 	}
 	target, err := s.users.GetByID(ctx, targetUserID)
 	if err != nil {
