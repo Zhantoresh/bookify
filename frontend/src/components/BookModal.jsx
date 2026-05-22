@@ -32,13 +32,20 @@ export default function BookModal({ service, onClose, onSuccess }) {
         service_id: service.id,
         start_time: `${date}T${selectedSlot.start_time}:00Z`,
         notes,
-})
+      })
       onSuccess()
     } catch (err) {
       const msg = typeof err === 'string' ? err
-        : err?.message ?? JSON.stringify(err)
-      setError(msg)
-} finally {
+        : err?.message ?? 'Something went wrong'
+
+      if (msg.toLowerCase().includes('already booked') || msg.toLowerCase().includes('overlap') || msg.toLowerCase().includes('conflict')) {
+        setError('That slot is already taken. Please select another slot..')
+      } else if (msg.toLowerCase().includes('past')) {
+        setError('You cannot use the past tense..')
+      } else {
+        setError(msg)
+      }
+    } finally {
       setLoading(false)
     }
   }

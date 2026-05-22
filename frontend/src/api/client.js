@@ -37,7 +37,6 @@ async function request(method, path, body = null, auth = true) {
 
   const res = await fetch(`${BASE_URL}${path}`, options)
 
-  
   if (res.status === 401) {
     removeToken()
     window.location.href = '/login'
@@ -47,8 +46,7 @@ async function request(method, path, body = null, auth = true) {
   const data = await res.json().catch(() => ({}))
 
   if (!res.ok) {
-    
-    const message = data?.error || data?.message || 'Something went wrong'
+    const message = data?.error?.message || data?.error || data?.message || 'Something went wrong'
     throw new Error(message)
   }
 
