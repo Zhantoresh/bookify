@@ -3,6 +3,7 @@ package http
 import (
 	"log/slog"
 	nethttp "net/http"
+	"time"
 
 	"github.com/bookify/internal/domain"
 	"github.com/bookify/internal/service"
@@ -55,10 +56,13 @@ func NewServer(
 	mux.HandleFunc("/api/v1/appointments/available-slots", appointmentHandler.AvailableSlots)
 	mux.Handle("/api/v1/appointments/", appointmentHandler.HandleByID(protected))
 
+	rateLimiter := middleware.NewRateLimiter(60, time.Minute)
+
 	return chain(mux,
 		middleware.Recovery(logger),
 		middleware.Logging(logger),
 		middleware.CORS(),
+		rateLimiter.Middleware(),
 	)
 }
 
