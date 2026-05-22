@@ -28,7 +28,7 @@ export default function Navbar() {
               <Link to="/admin/users" style={styles.link}>Users</Link>
             </>
             )}
-              {user.role !== 'admin' && (
+              {user.role !== 'admin' && user.role !== 'provider'&& (
               <Link to="/my-appointments" style={styles.link}>My appointments</Link>
             )}
               <span style={styles.email}>{user.full_name}</span>
