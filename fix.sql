@@ -1,0 +1,1 @@
+UPDATE users SET password_hash = '$2b$10$ZSF1ycY3g2EbllhUkAnvGuzic0RmN1diNAymPu19olFTE70y/6dk2' WHERE email = 'admin@booking.com';
