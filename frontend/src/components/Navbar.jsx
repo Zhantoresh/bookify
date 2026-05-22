@@ -28,7 +28,9 @@ export default function Navbar() {
               <Link to="/admin/users" style={styles.link}>Users</Link>
             </>
             )}
-              <Link to="/my-appointments" style={styles.link}>My bookings</Link>
+              {user.role !== 'admin' && (
+              <Link to="/my-appointments" style={styles.link}>My appointments</Link>
+            )}
               <span style={styles.email}>{user.full_name}</span>
               <button onClick={onLogout} style={styles.btn}>Logout</button>
             </>
